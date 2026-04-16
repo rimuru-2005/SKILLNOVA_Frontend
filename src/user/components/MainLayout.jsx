@@ -1,33 +1,52 @@
-// ══════════════════════════════════════════════
-//  USER — MainLayout.jsx (Responsive)
-// ══════════════════════════════════════════════
-
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
-import Header  from "./Header";
-
-const PAGE_TITLES = {
-  "dashboard":      "Dashboard",
-  "knowledge":      "Knowledge Base",
-  "qa":             "Q&A Forum",
-  "reports":        "My Reports",
-  "meetings":       "AI Assistant",
-  "announcements":  "Announcements",
-  "analytics":      "Analytics",
-  "profile":        "My Profile",
-  "settings":       "Settings",
-};
+import Header from "./Header";
 
 const MainLayout = ({ page, onNavigate, children }) => {
-  const title = PAGE_TITLES[page] ?? "Dashboard";
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Close sidebar on route change (mobile)
-  useEffect(() => { setMobileOpen(false); }, [page]);
+  // ✅ Dynamic data
+  const [user, setUser] = useState(null);
+  const [notifications, setNotifications] = useState([]);
 
-  // Close sidebar on resize past mobile breakpoint
+  // ✅ Page titles (kept structured like admin)
+  const pageTitles = {
+    dashboard: "Dashboard",
+    knowledge: "Knowledge Base",
+    qa: "Q&A Forum",
+    reports: "My Reports",
+    meetings: "AI Assistant",
+    announcements: "Announcements",
+    analytics: "Analytics",
+    profile: "My Profile",
+    settings: "Settings",
+  };
+
+  const title = pageTitles[page] ?? "Dashboard";
+
+  // ✅ Fetch user + notifications (mock → replace with API)
   useEffect(() => {
-    const onResize = () => { if (window.innerWidth >= 768) setMobileOpen(false); };
+    setUser({
+      name: "Rahul Sharma",
+      role: "AI/ML Intern",
+      initials: "RS",
+    });
+
+    setNotifications([
+      { text: "Report reviewed", time: "5m ago", type: "primary" },
+      { text: "Meeting reminder", time: "1h ago", type: "secondary" },
+    ]);
+  }, []);
+
+  // UI behavior
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [page]);
+
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 768) setMobileOpen(false);
+    };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -49,13 +68,24 @@ const MainLayout = ({ page, onNavigate, children }) => {
             onClick={() => setMobileOpen(false)}
           />
           <div className="fixed inset-y-0 left-0 z-50 md:hidden">
-            <Sidebar active={page} onNavigate={onNavigate} forceMobileExpanded />
+            <Sidebar
+              active={page}
+              onNavigate={onNavigate}
+              forceMobileExpanded
+            />
           </div>
         </>
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header title={title} onMenuToggle={() => setMobileOpen(!mobileOpen)} />
+        {/* ✅ FIXED HEADER */}
+        <Header
+          title={title}
+          onMenuToggle={() => setMobileOpen(!mobileOpen)}
+          user={user || {}}
+          notifications={notifications || []}
+        />
+
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {children}
         </main>
