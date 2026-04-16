@@ -1,7 +1,4 @@
-// ══════════════════════════════════════════════
-//  USER — pages/ProjectFlow.jsx
-// ══════════════════════════════════════════════
-
+import { useState, useEffect } from "react"; // ADDED hooks
 import { motion } from "framer-motion";
 import { 
   CheckCircle, Clock, PlayCircle, Settings,
@@ -12,33 +9,49 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
 } from "recharts";
 import { Card } from "../../shared/components/UI";
+import { request } from "../../services/api";
 
 const MotionDiv = motion.div;
 const CHART_COLORS = ["#00bea3", "#ff6d34", "#f59e0b", "#3b82f6"];
 
-const PROJECT_MILESTONES = [
-  { id: 1, title: "UI/UX Design", status: "completed", icon: Settings },
-  { id: 2, title: "Frontend Development", status: "completed", icon: CheckCircle },
-  { id: 3, title: "Backend API Integration", status: "in-progress", icon: PlayCircle },
-  { id: 4, title: "Database Architecture", status: "in-progress", icon: Activity },
-  { id: 5, title: "Testing & QA", status: "pending", icon: Clock },
-  { id: 6, title: "Deployment", status: "pending", icon: Activity },
-];
-
-const ANALYTICS_DATA = [
-  { name: "Week 1", progress: 20, tasks: 5 },
-  { name: "Week 2", progress: 45, tasks: 12 },
-  { name: "Week 3", progress: 65, tasks: 18 },
-  { name: "Week 4", progress: 80, tasks: 25 },
-];
-
-const STATUS_DISTRIBUTION = [
-  { name: "Completed", value: 45 },
-  { name: "In Progress", value: 35 },
-  { name: "Pending", value: 20 },
-];
+// Helper to map icons to status strings from backend
+const iconMap = {
+  "Settings": Settings,
+  "CheckCircle": CheckCircle,
+  "PlayCircle": PlayCircle,
+  "Activity": Activity,
+  "Clock": Clock
+};
 
 const ProjectFlow = () => {
+  // 1. REMOVE HARDCODED ARRAYS and use State instead
+  const [milestones, setMilestones] = useState([]);
+  const [analytics, setAnalytics] = useState([]);
+  const [distribution, setDistribution] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 2. DYNAMIC INTEGRATION: Fetch data from backend
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // You can use /reports or /qa based on your guide 
+        const data = await request("/reports"); 
+        
+        setMilestones(data.milestones || []);
+        setAnalytics(data.analytics || []);
+        setDistribution(data.distribution || []);
+      } catch (err) {
+        console.error("Failed to fetch project flow:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) return <div className="p-10 text-center">Loading Project Data...</div>;
+
   return (
     <div className="space-y-6">
       <MotionDiv
@@ -51,7 +64,7 @@ const ProjectFlow = () => {
         <div className="absolute top-0 left-0 right-0 h-1" style={{ background: "linear-gradient(90deg, #00bea3, #3b82f6)" }} />
         <h1 className="text-2xl sm:text-3xl font-bold text-white">SkillNova Platform</h1>
         <p className="mt-2 text-sm sm:text-base" style={{ color: "#9ca3af" }}>
-          Current Project Phase: <span style={{ color: "#00bea3", fontWeight: 600 }}>Frontend Completed</span>
+          Current Project Phase: <span style={{ color: "#00bea3", fontWeight: 600 }}>Dynamic Overview</span>
         </p>
       </MotionDiv>
 
@@ -63,20 +76,20 @@ const ProjectFlow = () => {
             Project Flow
           </h3>
           <div className="space-y-4">
-            {PROJECT_MILESTONES.map((milestone, i) => {
-              const Icon = milestone.icon;
+            {/* 3. DYNAMIC RENDERING: Using milestones from API */}
+            {milestones.map((milestone, i) => {
+              const Icon = iconMap[milestone.icon] || Activity; // Fallback icon
               const isCompleted = milestone.status === "completed";
               const isInProgress = milestone.status === "in-progress";
 
               return (
                 <div key={milestone.id} className="relative flex items-start gap-4">
-                  {i !== PROJECT_MILESTONES.length - 1 && (
+                  {i !== milestones.length - 1 && (
                     <div 
                       className="absolute left-[19px] top-8 bottom-[-16px] w-[2px]" 
                       style={{ background: isCompleted ? "#00bea3" : "var(--border)" }} 
                     />
                   )}
-                  
                   <div 
                     className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 z-10"
                     style={{ 
@@ -86,7 +99,6 @@ const ProjectFlow = () => {
                   >
                     <Icon size={20} color={isCompleted ? "#00bea3" : isInProgress ? "#ff6d34" : "var(--muted)"} />
                   </div>
-                  
                   <div className="flex-1 pt-2">
                     <h4 className="text-sm font-semibold" style={{ color: "var(--text)" }}>
                       {milestone.title}
@@ -112,7 +124,8 @@ const ProjectFlow = () => {
                 Progress Overview
              </h3>
              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={ANALYTICS_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                {/* 4. DYNAMIC CHART: Using analytics from API */}
+                <AreaChart data={analytics} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorProgress" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#00bea3" stopOpacity={0.3}/>
@@ -136,8 +149,8 @@ const ProjectFlow = () => {
              <div className="flex flex-col sm:flex-row items-center gap-4">
                 <ResponsiveContainer width={150} height={150}>
                   <PieChart>
-                    <Pie data={STATUS_DISTRIBUTION} innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value">
-                      {STATUS_DISTRIBUTION.map((entry, index) => (
+                    <Pie data={distribution} innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value">
+                      {distribution.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                       ))}
                     </Pie>
@@ -145,7 +158,7 @@ const ProjectFlow = () => {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex-1 space-y-3 w-full">
-                  {STATUS_DISTRIBUTION.map((item, index) => (
+                  {distribution.map((item, index) => (
                     <div key={item.name} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }}></div>
