@@ -29,11 +29,11 @@ const PAGES = {
   settings:      <Settings />,
 };
 
-const UserApp = () => {
+const UserApp = ({ onLogout }) => {
   const [page, setPage] = useState("dashboard");
 
   return (
-    <MainLayout page={page} onNavigate={setPage}>
+    <MainLayout page={page} onNavigate={setPage}  onLogout={onLogout} >
       {/* Inject onNavigate to the page components so they can change the route */}
       {React.cloneElement(PAGES[page], { onNavigate: setPage })}
     </MainLayout>

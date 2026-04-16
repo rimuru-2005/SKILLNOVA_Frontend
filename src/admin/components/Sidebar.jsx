@@ -21,7 +21,7 @@ const ADMIN_MENU = [
   { id: "admin-settings",       label: "Settings",          icon: Settings        },
 ];
 
-const Sidebar = ({ active, onNavigate, forceMobileExpanded }) => {
+const Sidebar = ({ active, onNavigate, onLogout, forceMobileExpanded }) => {
   const [collapsed, setCollapsed] = useState(false);
   const isCollapsed = forceMobileExpanded ? false : collapsed;
 
@@ -108,7 +108,7 @@ const Sidebar = ({ active, onNavigate, forceMobileExpanded }) => {
 
       {/* Sign out */}
       <div className="p-2" style={{ borderTop: "1px solid #2d3436" }}>
-        <button
+        <button onClick={onLogout} 
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition"
           style={{ color: "#6b7280" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#2d3436"; e.currentTarget.style.color = "#ffffff"; }}
@@ -119,7 +119,7 @@ const Sidebar = ({ active, onNavigate, forceMobileExpanded }) => {
         </button>
       </div>
     </aside>
-  );
+  ); 
 };
 
 export default Sidebar;

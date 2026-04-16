@@ -24,11 +24,11 @@ const PAGES = {
   "admin-settings":      <Settings />,
 };
 
-const AdminApp = () => {
+const AdminApp = ({ onLogout }) => {
   const [page, setPage] = useState("admin-dashboard");
 
   return (
-    <MainLayout page={page} onNavigate={setPage}>
+    <MainLayout page={page} onNavigate={setPage} onLogout={onLogout}>
       {PAGES[page]}
     </MainLayout>
   );

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
-const MainLayout = ({ page, onNavigate, children }) => {
+const MainLayout = ({ page, onNavigate, onLogout, children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -55,7 +55,7 @@ const MainLayout = ({ page, onNavigate, children }) => {
       style={{ background: "var(--bg)" }}
     >
       <div className="hidden md:block">
-        <Sidebar active={page} onNavigate={onNavigate} />
+        <Sidebar active={page} onNavigate={onNavigate} onLogout={onLogout} />
       </div>
 
       {mobileOpen && (

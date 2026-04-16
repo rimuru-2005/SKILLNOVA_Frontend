@@ -21,7 +21,7 @@ const USER_MENU = [
   { id: "settings",       label: "Settings",       icon: Settings        },
 ];
 
-const Sidebar = ({ active, onNavigate, forceMobileExpanded }) => {
+const Sidebar = ({ active, onNavigate, forceMobileExpanded, onLogout  }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   // On mobile overlay, always show expanded
@@ -111,7 +111,7 @@ const Sidebar = ({ active, onNavigate, forceMobileExpanded }) => {
 
       {/* Sign out */}
       <div className="p-2" style={{ borderTop: "1px solid #3d4446" }}>
-        <button
+        <button  onClick={onLogout} 
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition"
           style={{ color: "#9ca3af" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#3d4446"; e.currentTarget.style.color = "#ffffff"; }}
@@ -122,7 +122,7 @@ const Sidebar = ({ active, onNavigate, forceMobileExpanded }) => {
         </button>
       </div>
     </aside>
-  );
+  ); 
 };
 
 export default Sidebar;

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
-const MainLayout = ({ page, onNavigate, children }) => {
+const MainLayout = ({ page, onNavigate, onLogout, children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // ✅ Dynamic data
@@ -56,7 +56,7 @@ const MainLayout = ({ page, onNavigate, children }) => {
 
       {/* Desktop sidebar — hidden on mobile */}
       <div className="hidden md:block">
-        <Sidebar active={page} onNavigate={onNavigate} />
+        <Sidebar active={page} onNavigate={onNavigate}  onLogout={onLogout} />
       </div>
 
       {/* Mobile sidebar overlay */}
