@@ -69,6 +69,7 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
             <Sidebar
               active={page}
               onNavigate={onNavigate}
+              onLogout={onLogout}
               forceMobileExpanded
             />
           </div>

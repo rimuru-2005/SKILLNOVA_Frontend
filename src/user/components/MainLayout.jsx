@@ -52,11 +52,13 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden transition-colors duration-200" style={{ background: "var(--bg)" }}>
-
+    <div
+      className="flex h-screen overflow-hidden transition-colors duration-200"
+      style={{ background: "var(--bg)" }}
+    >
       {/* Desktop sidebar — hidden on mobile */}
       <div className="hidden md:block">
-        <Sidebar active={page} onNavigate={onNavigate}  onLogout={onLogout} />
+        <Sidebar active={page} onNavigate={onNavigate} onLogout={onLogout} />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -71,6 +73,7 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
             <Sidebar
               active={page}
               onNavigate={onNavigate}
+              onLogout={onLogout}
               forceMobileExpanded
             />
           </div>
@@ -86,9 +89,7 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
           notifications={notifications || []}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
