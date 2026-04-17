@@ -10,15 +10,15 @@ import {
 } from "lucide-react";
 
 const USER_MENU = [
-  { id: "dashboard",      label: "Dashboard",      icon: LayoutDashboard },
-  { id: "knowledge",      label: "Knowledge Base", icon: BookOpen        },
-  { id: "project_flow",   label: "Project Flow",   icon: Activity        },
-  { id: "reports",        label: "My Reports",     icon: FileText        },
-  { id: "meetings",       label: "AI Assistant",   icon: Bot             },
-  { id: "announcements",  label: "Announcements",  icon: Megaphone       },
-  { id: "analytics",      label: "Analytics",      icon: BarChart2       },
-  { id: "profile",        label: "Profile",        icon: User            },
-  { id: "settings",       label: "Settings",       icon: Settings        },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "knowledge", label: "Knowledge Base", icon: BookOpen },
+  { id: "project_flow", label: "Project Flow", icon: Activity },
+  { id: "reports", label: "My Reports", icon: FileText },
+  { id: "ai_assistant", label: "AI Assistant", icon: Bot },
+  { id: "announcements", label: "Announcements", icon: Megaphone },
+  { id: "analytics", label: "Analytics", icon: BarChart2 },
+  { id: "profile", label: "Profile", icon: User },
+  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 const Sidebar = ({ active, onNavigate, forceMobileExpanded, onLogout  }) => {

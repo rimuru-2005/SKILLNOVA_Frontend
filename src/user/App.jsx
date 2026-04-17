@@ -8,25 +8,25 @@ import Dashboard     from "./pages/Dashboard";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import QA            from "./pages/QA";
 import Reports       from "./pages/Reports";
-import Meetings      from "./pages/Meetings";
 import Announcements from "./pages/Announcements";
 import Analytics     from "./pages/Analytics";
 import Profile       from "./pages/Profile";
 import Settings      from "./pages/Settings";
 
 import ProjectFlow   from "./pages/ProjectFlow";
+import AIAssistant from "./pages/AIAssistant";
 
 const PAGES = {
-  dashboard:     <Dashboard />,
-  knowledge:     <KnowledgeBase />,
-  qa:            <QA />,
-  project_flow:  <ProjectFlow />,
-  reports:       <Reports />,
-  meetings:      <Meetings />,
+  dashboard: <Dashboard />,
+  knowledge: <KnowledgeBase />,
+  qa: <QA />,
+  project_flow: <ProjectFlow />,
+  reports: <Reports />,
+  ai_assistant: <AIAssistant />,
   announcements: <Announcements />,
-  analytics:     <Analytics />,
-  profile:       <Profile />,
-  settings:      <Settings />,
+  analytics: <Analytics />,
+  profile: <Profile />,
+  settings: <Settings />,
 };
 
 const UserApp = ({ onLogout }) => {

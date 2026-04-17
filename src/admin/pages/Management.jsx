@@ -1,36 +1,93 @@
-// ══════════════════════════════════════════════
-//  ADMIN — pages/Management.jsx  (Intern Management)
-// ══════════════════════════════════════════════
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, CheckCircle, XCircle, ClipboardList } from "lucide-react";
 import { Card, Badge, SectionHeader } from "../../shared/components/UI";
-import { MOCK_INTERNS } from "../../shared/utils/constants";
-
+import { request } from "../../services/api";
 const Management = () => {
-  const [interns, setInterns] = useState(MOCK_INTERNS);
-  const [search,  setSearch]  = useState("");
+  const [interns, setInterns] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const toggleAttendance = id =>
-    setInterns(is => is.map(i => i.id === id
-      ? { ...i, attendance: i.attendance === "Present" ? "Absent" : "Present" }
-      : i
-    ));
+  // Fetch interns from API with auth
+  const fetchInterns = async () => {
+    setLoading(true);
+    try {
+      // API Call
+      const response = await request("/interns");
 
-  const toggleStatus = id =>
-    setInterns(is => is.map(i => i.id === id
-      ? { ...i, status: i.status === "Active" ? "Inactive" : "Active" }
-      : i
-    ));
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
-  const filtered = interns.filter(i =>
-    i.name.toLowerCase().includes(search.toLowerCase()) ||
-    i.department.toLowerCase().includes(search.toLowerCase())
+      const data = await response.json();
+      console.log("API Response:", data); // Debug log
+
+      // Handle both response formats
+      if (data.success && Array.isArray(data.data)) {
+        setInterns(data.data);
+      } else if (Array.isArray(data)) {
+        setInterns(data);
+      } else {
+        console.error("Unexpected data format:", data);
+        setInterns([]);
+      }
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching interns:", err);
+      setError("Failed to load interns");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleAttendance = async (id) => {
+    try {
+      // API Call
+      const response = await request(`/interns/${id}/attendance`, {
+        method: "PATCH",
+      });
+      const updatedIntern = await response.json();
+      setInterns((prev) => prev.map((i) => (i.id === id ? updatedIntern : i)));
+    } catch (error) {
+      console.error("Error updating attendance:", error);
+    }
+  };
+
+  const toggleStatus = async (id) => {
+    try {
+      // API CALL
+      const response = await request(`/interns/${id}/status`, {
+        method: "PATCH",
+      });
+      const updatedIntern = await response.json();
+      setInterns((prev) => prev.map((i) => (i.id === id ? updatedIntern : i)));
+    } catch (error) {
+      console.error("Error updating status:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchInterns();
+  }, []);
+
+  // ... rest of your component remains the same (the JSX)
+
+  const filtered = interns.filter(
+    (i) =>
+      i.name.toLowerCase().includes(search.toLowerCase()) ||
+      i.department.toLowerCase().includes(search.toLowerCase()),
   );
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading interns...</div>;
+  }
+
+  if (error) {
+    return <div className="p-8 text-center text-red-500">{error}</div>;
+  }
 
   return (
     <div className="space-y-6">
-
       <SectionHeader
         title="Intern Management"
         subtitle="Manage intern attendance, tasks, status and ratings"
@@ -38,17 +95,28 @@ const Management = () => {
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: "Total Interns",  value: interns.length,                                            bg: "bg-blue-50",    text: "text-blue-700"    },
-          { label: "Present Today",  value: interns.filter(i => i.attendance === "Present").length,    bg: "bg-emerald-50", text: "text-emerald-700" },
-          { label: "Absent Today",   value: interns.filter(i => i.attendance === "Absent").length,     bg: "bg-red-50",     text: "text-red-700"     },
-          { label: "Active Status",  value: interns.filter(i => i.status === "Active").length,         bg: "bg-violet-50",  text: "text-violet-700"  },
-        ].map(s => (
-          <div key={s.label} className={`${s.bg} ${s.text} rounded-xl p-4`}>
-            <p className="text-2xl font-bold">{s.value}</p>
-            <p className="text-xs font-medium mt-0.5 opacity-70">{s.label}</p>
-          </div>
-        ))}
+        <div className="bg-blue-50 text-blue-700 rounded-xl p-4">
+          <p className="text-2xl font-bold">{interns.length}</p>
+          <p className="text-xs font-medium mt-0.5 opacity-70">Total Interns</p>
+        </div>
+        <div className="bg-emerald-50 text-emerald-700 rounded-xl p-4">
+          <p className="text-2xl font-bold">
+            {interns.filter((i) => i.attendance === "Present").length}
+          </p>
+          <p className="text-xs font-medium mt-0.5 opacity-70">Present Today</p>
+        </div>
+        <div className="bg-red-50 text-red-700 rounded-xl p-4">
+          <p className="text-2xl font-bold">
+            {interns.filter((i) => i.attendance === "Absent").length}
+          </p>
+          <p className="text-xs font-medium mt-0.5 opacity-70">Absent Today</p>
+        </div>
+        <div className="bg-violet-50 text-violet-700 rounded-xl p-4">
+          <p className="text-2xl font-bold">
+            {interns.filter((i) => i.status === "Active").length}
+          </p>
+          <p className="text-xs font-medium mt-0.5 opacity-70">Active Status</p>
+        </div>
       </div>
 
       {/* Search */}
