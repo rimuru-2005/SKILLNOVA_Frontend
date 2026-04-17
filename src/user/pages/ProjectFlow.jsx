@@ -34,6 +34,7 @@ const ProjectFlow = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        // API Call
         // You can use /reports or /qa based on your guide 
         const data = await request("/reports"); 
         

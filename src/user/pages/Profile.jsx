@@ -37,6 +37,7 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        // API CALL
         const data = await request("/users/me");
         setProfile(data);
         setLoading(false);
@@ -53,6 +54,7 @@ const Profile = () => {
   // Handle Save (Integration)
   const handleSave = async () => {
     try {
+      // API CALL
       await request("/users/me", {
         method: "PUT", // Or POST depending on your backend
         body: JSON.stringify(profile),
