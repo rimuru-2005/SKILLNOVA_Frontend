@@ -21,7 +21,13 @@ const USER_MENU = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-const Sidebar = ({ active, onNavigate, forceMobileExpanded, onLogout }) => {
+const Sidebar = ({
+  active,
+  onNavigate,
+  forceMobileExpanded,
+  onLogout,
+  platformInitials = "U",
+}) => {
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip] = useState(null);
   const isCollapsed = forceMobileExpanded ? false : collapsed;
@@ -80,7 +86,7 @@ const Sidebar = ({ active, onNavigate, forceMobileExpanded, onLogout }) => {
               >
                 {/* Default */}
                 <span className="group-hover:hidden transition-all duration-200">
-                  U
+                  {platformInitials}
                 </span>
 
                 {/* On hover */}

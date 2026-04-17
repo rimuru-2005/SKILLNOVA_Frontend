@@ -1,12 +1,88 @@
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { request } from "../../services/api";
+
+const PLATFORM_SETTINGS_ENDPOINT = "/platform/settings";
+const ANNOUNCEMENTS_ENDPOINT = "/announcements";
+
+const getInitials = (value, fallback = "") => {
+  if (!value || typeof value !== "string") return fallback;
+
+  const parts = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!parts.length) return fallback;
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+};
+
+const getPlatformInitials = (profile) => {
+  const platformLabel =
+    profile?.platformInitials ||
+    profile?.platformName ||
+    profile?.name ||
+    profile?.company ||
+    profile?.organization ||
+    profile?.orgName ||
+    profile?.siteName;
+
+  return getInitials(platformLabel, "U");
+};
+
+const formatRelativeTime = (value) => {
+  if (!value) return "New";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "New";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString();
+};
+
+const normalizeNotifications = (payload) => {
+  const items = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.announcements)
+      ? payload.announcements
+      : Array.isArray(payload?.items)
+        ? payload.items
+        : [];
+
+  return items.slice(0, 6).map((item) => ({
+    text:
+      item?.title ||
+      item?.message ||
+      item?.text ||
+      "New announcement",
+    time: formatRelativeTime(
+      item?.createdAt || item?.updatedAt || item?.date || item?.publishedAt
+    ),
+    type: item?.priority === "high" || item?.pinned ? "primary" : "secondary",
+  }));
+};
 
 const MainLayout = ({ page, onNavigate, onLogout, children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // ✅ Dynamic data
   const [user, setUser] = useState(null);
+  const [platformInitials, setPlatformInitials] = useState("U");
   const [notifications, setNotifications] = useState([]);
 
   // ✅ Page titles (kept structured like admin)
@@ -25,18 +101,58 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
 
   const title = pageTitles[page] ?? "Dashboard";
 
-  // ✅ Fetch user + notifications (mock → replace with API)
+  // ✅ Fetch user + notifications
   useEffect(() => {
-    setUser({
-      name: "Rahul Sharma",
-      role: "AI/ML Intern",
-      initials: "RS",
-    });
+    const loadLayoutData = async () => {
+      const [userResult, platformResult, announcementsResult] = await Promise.allSettled([
+        // API CALL
+        request("/users/me"),
+        // Placeholder endpoint for platform/site metadata until backend adds it.
+        // API CALL
+        request(PLATFORM_SETTINGS_ENDPOINT),
+        // API CALL
+        request(ANNOUNCEMENTS_ENDPOINT),
+      ]);
 
-    setNotifications([
-      { text: "Report reviewed", time: "5m ago", type: "primary" },
-      { text: "Meeting reminder", time: "1h ago", type: "secondary" },
-    ]);
+      if (userResult.status === "fulfilled") {
+        const profile = userResult.value;
+        setUser({
+          ...profile,
+          name: profile?.name || "User",
+          role: profile?.role || "Intern",
+          initials: getInitials(profile?.name, "U"),
+        });
+      } else {
+        console.error("Failed to load user header data:", userResult.reason);
+        setUser({
+          name: "User",
+          role: "Intern",
+          initials: "U",
+        });
+      }
+
+      if (platformResult.status === "fulfilled") {
+        setPlatformInitials(getPlatformInitials(platformResult.value));
+      } else {
+        console.warn(
+          `Failed to load platform metadata from ${PLATFORM_SETTINGS_ENDPOINT}:`,
+          platformResult.reason
+        );
+        setPlatformInitials("U");
+      }
+
+      if (announcementsResult.status === "fulfilled") {
+        setNotifications(normalizeNotifications(announcementsResult.value));
+      } else {
+        console.warn(
+          `Failed to load notifications from ${ANNOUNCEMENTS_ENDPOINT}:`,
+          announcementsResult.reason
+        );
+        setNotifications([]);
+      }
+    };
+
+    loadLayoutData();
   }, []);
 
   // UI behavior
@@ -59,7 +175,12 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
     >
       {/* Desktop sidebar — hidden on mobile */}
       <div className="hidden md:block">
-        <Sidebar active={page} onNavigate={onNavigate} onLogout={onLogout} />
+        <Sidebar
+          active={page}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          platformInitials={platformInitials}
+        />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -76,6 +197,7 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
               onNavigate={onNavigate}
               onLogout={onLogout}
               forceMobileExpanded
+              platformInitials={platformInitials}
             />
           </div>
         </>

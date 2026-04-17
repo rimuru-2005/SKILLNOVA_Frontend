@@ -28,7 +28,13 @@ const ADMIN_MENU = [
   { id: "admin-settings", label: "Settings", icon: Settings },
 ];
 
-const Sidebar = ({ active, onNavigate, onLogout, forceMobileExpanded }) => {
+const Sidebar = ({
+  active,
+  onNavigate,
+  onLogout,
+  forceMobileExpanded,
+  platformInitials = "U",
+}) => {
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip] = useState(null);
   const isCollapsed = forceMobileExpanded ? false : collapsed;
@@ -87,7 +93,7 @@ const Sidebar = ({ active, onNavigate, onLogout, forceMobileExpanded }) => {
               >
                 {/* Default */}
                 <span className="group-hover:hidden transition-all duration-200">
-                  U
+                  {platformInitials}
                 </span>
 
                 {/* On hover */}
