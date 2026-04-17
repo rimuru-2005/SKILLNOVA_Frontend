@@ -9,7 +9,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
 } from "recharts";
 import { Card } from "../../shared/components/UI";
-import { request } from "../../services/api";
+import { getReports } from "../../services/apiClient";
 
 const MotionDiv = motion.div;
 const CHART_COLORS = ["#00bea3", "#ff6d34", "#f59e0b", "#3b82f6"];
@@ -34,9 +34,7 @@ const ProjectFlow = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // API Call
-        // You can use /reports or /qa based on your guide 
-        const data = await request("/reports"); 
+        const data = await getReports();
         
         setMilestones(data.milestones || []);
         setAnalytics(data.analytics || []);

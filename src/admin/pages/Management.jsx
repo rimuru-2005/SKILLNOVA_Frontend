@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { Search, CheckCircle, XCircle, ClipboardList } from "lucide-react";
 import { Card, Badge, SectionHeader } from "../../shared/components/UI";
-import { request } from "../../services/api";
+import {
+  getInterns,
+  updateInternAttendance,
+  updateInternStatus,
+} from "../../services/apiClient";
 const Management = () => {
   const [interns, setInterns] = useState([]);
   const [search, setSearch] = useState("");
@@ -12,14 +16,7 @@ const Management = () => {
   const fetchInterns = async () => {
     setLoading(true);
     try {
-      // API Call
-      const response = await request("/interns");
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await getInterns();
       console.log("API Response:", data); // Debug log
 
       // Handle both response formats
@@ -42,11 +39,7 @@ const Management = () => {
 
   const toggleAttendance = async (id) => {
     try {
-      // API Call
-      const response = await request(`/interns/${id}/attendance`, {
-        method: "PATCH",
-      });
-      const updatedIntern = await response.json();
+      const updatedIntern = await updateInternAttendance(id);
       setInterns((prev) => prev.map((i) => (i.id === id ? updatedIntern : i)));
     } catch (error) {
       console.error("Error updating attendance:", error);
@@ -55,11 +48,7 @@ const Management = () => {
 
   const toggleStatus = async (id) => {
     try {
-      // API CALL
-      const response = await request(`/interns/${id}/status`, {
-        method: "PATCH",
-      });
-      const updatedIntern = await response.json();
+      const updatedIntern = await updateInternStatus(id);
       setInterns((prev) => prev.map((i) => (i.id === id ? updatedIntern : i)));
     } catch (error) {
       console.error("Error updating status:", error);

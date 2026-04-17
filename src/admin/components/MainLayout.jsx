@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-import { request } from "../../services/api";
-
-const PLATFORM_SETTINGS_ENDPOINT = "/platform/settings";
-const ANNOUNCEMENTS_ENDPOINT = "/announcements";
+import {
+  getAnnouncements,
+  getCurrentUser,
+  getPlatformSettings,
+} from "../../services/apiClient";
 
 const getInitials = (value, fallback = "") => {
   if (!value || typeof value !== "string") return fallback;
@@ -101,13 +102,9 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
   useEffect(() => {
     const loadLayoutData = async () => {
       const [userResult, platformResult, announcementsResult] = await Promise.allSettled([
-        // API CALL
-        request("/users/me"),
-        // Placeholder endpoint for platform/site metadata until backend adds it.
-        // API CALL
-        request(PLATFORM_SETTINGS_ENDPOINT),
-        // API CALL
-        request(ANNOUNCEMENTS_ENDPOINT),
+        getCurrentUser(),
+        getPlatformSettings(),
+        getAnnouncements(),
       ]);
 
       if (userResult.status === "fulfilled") {
@@ -131,7 +128,7 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
         setPlatformInitials(getPlatformInitials(platformResult.value));
       } else {
         console.warn(
-          `Failed to load platform metadata from ${PLATFORM_SETTINGS_ENDPOINT}:`,
+          "Failed to load platform metadata:",
           platformResult.reason
         );
         setPlatformInitials("U");
@@ -141,7 +138,7 @@ const MainLayout = ({ page, onNavigate, onLogout, children }) => {
         setNotifications(normalizeNotifications(announcementsResult.value));
       } else {
         console.warn(
-          `Failed to load notifications from ${ANNOUNCEMENTS_ENDPOINT}:`,
+          "Failed to load notifications:",
           announcementsResult.reason
         );
         setNotifications([]);

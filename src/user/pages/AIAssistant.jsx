@@ -1,7 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Sparkles, Bot, Zap, CheckCircle } from "lucide-react";
 import { Card } from "../../shared/components/UI";
-import { request } from "../../services/api";
+import {
+  getAiCapabilities,
+  getAiSuggestions,
+  getAiWelcomeMessage,
+  sendAiChatMessage,
+} from "../../services/apiClient";
 
 const AIAssistant = () => {
   const [messages, setMessages] = useState([]);
@@ -18,28 +23,18 @@ const AIAssistant = () => {
         // Fetch all data in parallel
         const [suggestionsRes, capabilitiesRes, welcomeRes] = await Promise.all(
           [
-            // API CALL
-            request("/suggestions"),
-            request("/capabilities"),
-            request("/welcome-message"),
+            getAiSuggestions(),
+            getAiCapabilities(),
+            getAiWelcomeMessage(),
           ],
         );
 
-        if (!suggestionsRes.ok) throw new Error("Failed to fetch suggestions");
-        if (!capabilitiesRes.ok)
-          throw new Error("Failed to fetch capabilities");
-        if (!welcomeRes.ok) throw new Error("Failed to fetch welcome message");
-
-        const suggestionsData = await suggestionsRes.json();
-        const capabilitiesData = await capabilitiesRes.json();
-        const welcomeData = await welcomeRes.json();
-
-        setSuggestions(suggestionsData.data || suggestionsData);
-        setCapabilities(capabilitiesData.data || capabilitiesData);
+        setSuggestions(suggestionsRes.data || suggestionsRes || []);
+        setCapabilities(capabilitiesRes.data || capabilitiesRes || []);
         setMessages([
           {
             type: "ai",
-            text: welcomeData.message || "Hello! How can I help you today?",
+            text: welcomeRes.message || "Hello! How can I help you today?",
           },
         ]);
       } catch (error) {
@@ -58,12 +53,7 @@ const AIAssistant = () => {
   const callBackendAI = async (userMessage) => {
     setLoading(true);
     try {
-      // API CALL 
-      const response = await request("/chat", {
-        method: "POST",
-        body: JSON.stringify({ message: userMessage }),
-      });
-      const data = await response.json();
+      const data = await sendAiChatMessage(userMessage);
       return (
         data.reply ||
         data.message ||

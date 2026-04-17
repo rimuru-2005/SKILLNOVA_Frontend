@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"; // Add useEffect
 import { Edit, Save, User, Mail, Briefcase, GraduationCap, Link } from "lucide-react";
 import { Card, SectionHeader } from "../../shared/components/UI";
-import { request } from "../../services/api";
+import { getCurrentUser, updateCurrentUser } from "../../services/apiClient";
 
 const FIELDS = [
   { label: "Full Name",     key: "name",       type: "text",  icon: User          , placeHolder: "Your Name"},
@@ -37,8 +37,7 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // API CALL
-        const data = await request("/users/me");
+        const data = await getCurrentUser();
         setProfile(data);
         setLoading(false);
       } catch (error) {
@@ -54,11 +53,7 @@ const Profile = () => {
   // Handle Save (Integration)
   const handleSave = async () => {
     try {
-      // API CALL
-      await request("/users/me", {
-        method: "PUT", // Or POST depending on your backend
-        body: JSON.stringify(profile),
-      });
+      await updateCurrentUser(profile);
       setEditing(false);
       alert("Profile updated successfully!");
     } catch (error) {
