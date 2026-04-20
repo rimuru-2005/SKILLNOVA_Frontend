@@ -88,6 +88,172 @@ export const getAnnouncements = () => {
   return request("/announcements");
 };
 
+export const createAnnouncement = (announcement) => {
+  // API CALL
+  // Expected request body:
+  // {
+  //   title: string,
+  //   content: string,
+  //   priority?: string
+  // }
+  return request("/announcements", {
+    method: "POST",
+    body: JSON.stringify(announcement),
+  });
+};
+
+export const updateAnnouncement = (id, payload) => {
+  // API CALL
+  // Expected request body:
+  // Partial<{
+  //   title: string,
+  //   content: string,
+  //   priority: string,
+  //   pinned: boolean
+  // }>
+  return request(`/announcements/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const deleteAnnouncement = (id) => {
+  // API CALL
+  return request(`/announcements/${id}`, {
+    method: "DELETE",
+  });
+};
+
+const USER_ANNOUNCEMENT_PINS_STORAGE_KEY = "user-announcement-pins";
+
+const readAnnouncementPins = () => {
+  try {
+    const raw = localStorage.getItem(USER_ANNOUNCEMENT_PINS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeAnnouncementPins = (ids) => {
+  localStorage.setItem(USER_ANNOUNCEMENT_PINS_STORAGE_KEY, JSON.stringify(ids));
+};
+
+export const getUserAnnouncementPins = async () => {
+  // LOCAL PERSISTENCE FALLBACK
+  // Replace with a backend endpoint when available.
+  return readAnnouncementPins();
+};
+
+export const setUserAnnouncementPin = async (id, pinned) => {
+  // LOCAL PERSISTENCE FALLBACK
+  // Replace with a backend endpoint when available.
+  const currentPins = readAnnouncementPins();
+  const nextPins = pinned
+    ? Array.from(new Set([...currentPins, id]))
+    : currentPins.filter((item) => item !== id);
+
+  writeAnnouncementPins(nextPins);
+  return nextPins;
+};
+
+const QA_STORAGE_KEY = "qa-questions";
+const DEFAULT_QA_QUESTIONS = [
+  {
+    id: 1,
+    title: "How do I submit my weekly internship report?",
+    category: "Reports",
+    votes: 14,
+    answers: 4,
+    author: "Rahul Sharma",
+    time: "2h ago",
+  },
+  {
+    id: 2,
+    title: "Where can I find project documentation?",
+    category: "Knowledge Base",
+    votes: 9,
+    answers: 3,
+    author: "Priya Patel",
+    time: "5h ago",
+  },
+  {
+    id: 3,
+    title: "How do I schedule a meeting with my mentor?",
+    category: "Meetings",
+    votes: 6,
+    answers: 2,
+    author: "Amit Verma",
+    time: "1d ago",
+  },
+  {
+    id: 4,
+    title: "What format should my weekly report be in?",
+    category: "Reports",
+    votes: 4,
+    answers: 1,
+    author: "Sneha Reddy",
+    time: "2d ago",
+  },
+];
+
+const readQaQuestions = () => {
+  try {
+    const raw = localStorage.getItem(QA_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_QA_QUESTIONS;
+  } catch {
+    return DEFAULT_QA_QUESTIONS;
+  }
+};
+
+const writeQaQuestions = (questions) => {
+  localStorage.setItem(QA_STORAGE_KEY, JSON.stringify(questions));
+};
+
+export const getQaQuestions = async () => {
+  // LOCAL PERSISTENCE FALLBACK
+  // Replace with a backend endpoint when available.
+  return readQaQuestions();
+};
+
+export const createQaQuestion = async (payload) => {
+  // LOCAL PERSISTENCE FALLBACK
+  // Replace with a backend endpoint when available.
+  const nextQuestion = {
+    id: Date.now(),
+    title: payload.title,
+    category: payload.category || "Projects",
+    votes: 0,
+    answers: 0,
+    author: payload.author || "You",
+    time: "Just now",
+  };
+
+  const nextQuestions = [nextQuestion, ...readQaQuestions()];
+  writeQaQuestions(nextQuestions);
+  return nextQuestion;
+};
+
+export const upvoteQaQuestion = async (id) => {
+  // LOCAL PERSISTENCE FALLBACK
+  // Replace with a backend endpoint when available.
+  let updatedQuestion = null;
+
+  const nextQuestions = readQaQuestions().map((question) => {
+    if (question.id !== id) {
+      return question;
+    }
+
+    updatedQuestion = { ...question, votes: question.votes + 1 };
+    return updatedQuestion;
+  });
+
+  writeQaQuestions(nextQuestions);
+  return updatedQuestion;
+};
+
 export const getAiSuggestions = () => {
   // API CALL
   // Expected response:
@@ -130,6 +296,41 @@ export const sendAiChatMessage = (message) => {
     method: "POST",
     body: JSON.stringify({ message }),
   });
+};
+
+export const getAiAssistantBootstrap = async () => {
+  const [suggestionsResult, capabilitiesResult, welcomeResult] = await Promise.allSettled([
+    getAiSuggestions(),
+    getAiCapabilities(),
+    getAiWelcomeMessage(),
+  ]);
+
+  if (
+    suggestionsResult.status === "rejected" &&
+    capabilitiesResult.status === "rejected" &&
+    welcomeResult.status === "rejected"
+  ) {
+    throw new Error("AI assistant bootstrap unavailable");
+  }
+
+  return {
+    suggestions:
+      suggestionsResult.status === "fulfilled"
+        ? suggestionsResult.value?.data ?? suggestionsResult.value ?? []
+        : [],
+    capabilities:
+      capabilitiesResult.status === "fulfilled"
+        ? capabilitiesResult.value?.data ?? capabilitiesResult.value ?? []
+        : [],
+    welcomeMessage:
+      welcomeResult.status === "fulfilled"
+        ? welcomeResult.value?.message || "Hello! How can I help you today?"
+        : "Hello! How can I help you today?",
+    partialData:
+      suggestionsResult.status === "rejected" ||
+      capabilitiesResult.status === "rejected" ||
+      welcomeResult.status === "rejected",
+  };
 };
 
 export const getReports = () => {

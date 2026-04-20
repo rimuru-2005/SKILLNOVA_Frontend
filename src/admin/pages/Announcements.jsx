@@ -2,10 +2,15 @@
 //  ADMIN — pages/Announcements.jsx
 // ══════════════════════════════════════════════
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Plus, Pin, Trash2, Megaphone, X } from "lucide-react";
 import { Card, Badge, SectionHeader } from "../../shared/components/UI";
-import { request } from "../../services/api";
+import {
+  createAnnouncement,
+  deleteAnnouncement,
+  getAnnouncements,
+  updateAnnouncement,
+} from "../../services/apiClient";
 
 const PRIORITY_VARIANTS = { High: "danger", Medium: "warning", Low: "success" };
 const PRIORITIES = ["High", "Medium", "Low"];
@@ -34,23 +39,11 @@ const isAnnouncementLike = (item) =>
   Boolean(
     item &&
       typeof item === "object" &&
-      (item.title ||
-        item.content ||
-        item.desc ||
-        item.message ||
-        item.text ||
-        item.id ||
-        item._id),
+      (item.title || item.content || item.desc || item.message || item.text || item.id || item._id),
   );
 
 const getSingleAnnouncement = (payload) => {
-  const candidates = [
-    payload?.data,
-    payload?.announcement,
-    payload?.item,
-    payload,
-  ];
-
+  const candidates = [payload?.data, payload?.announcement, payload?.item, payload];
   return candidates.find(isAnnouncementLike) || null;
 };
 
@@ -87,50 +80,42 @@ const Announcements = () => {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
+  const [actionState, setActionState] = useState({ id: null, type: "" });
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadAnnouncements = async () => {
+    setLoading(true);
 
-    const loadAnnouncements = async () => {
-      setLoading(true);
-      try {
-        const response = await request("/announcements");
-        const nextItems = getAnnouncementList(response)
-          .map(normalizeAnnouncement)
-          .filter(Boolean);
-
-        if (!isMounted) return;
-        setItems(nextItems);
-        setError("");
-      } catch (err) {
-        console.error(err);
-        if (!isMounted) return;
-        setItems([]);
-        setError("Failed to load announcements.");
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    if (!localStorage.getItem("token")) {
-      localStorage.setItem("token", "demo-admin-token");
+    try {
+      const response = await getAnnouncements();
+      setItems(getAnnouncementList(response).map(normalizeAnnouncement).filter(Boolean));
+      setError("");
+    } catch (loadError) {
+      console.error("Error loading announcements:", loadError);
+      setItems([]);
+      setError("Failed to load announcements.");
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     loadAnnouncements();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
-  const togglePin = (id) =>
-    setItems((is) =>
-      is.map((a) => (a.id === id ? { ...a, pinned: !a.pinned } : a)),
-    );
+  const closeForm = () => {
+    setShowForm(false);
+    setForm(DEFAULT_FORM);
+  };
+
+  const handleToggleForm = () => {
+    if (showForm) {
+      closeForm();
+      return;
+    }
+
+    setShowForm(true);
+  };
 
   const handlePost = async () => {
     const title = form.title.trim();
@@ -142,13 +127,10 @@ const Announcements = () => {
     setError("");
 
     try {
-      const response = await request("/announcements", {
-        method: "POST",
-        body: JSON.stringify({
-          title,
-          content,
-          priority: form.priority,
-        }),
+      const response = await createAnnouncement({
+        title,
+        content,
+        priority: form.priority,
       });
 
       const createdAnnouncement = normalizeAnnouncement(
@@ -163,40 +145,63 @@ const Announcements = () => {
       );
 
       setItems((currentItems) => [createdAnnouncement, ...currentItems]);
-
-      setForm(DEFAULT_FORM);
-      setShowForm(false);
-    } catch (err) {
-      console.error(err);
+      closeForm();
+    } catch (createError) {
+      console.error("Error creating announcement:", createError);
       setError("Failed to post announcement.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const deleteItem = async (id) => {
-    if (deletingId !== null) return;
-
-    setDeletingId(id);
-    setError("");
+  const handlePinToggle = async (id) => {
+    const announcement = items.find((item) => item.id === id);
+    if (!announcement) return;
 
     try {
-      await request(`/announcements/${id}`, {
-        method: "DELETE",
+      setActionState({ id, type: "pin" });
+      setError("");
+
+      const response = await updateAnnouncement(id, {
+        pinned: !announcement.pinned,
       });
 
-      setItems((currentItems) => currentItems.filter((a) => a.id !== id));
-    } catch (err) {
-      console.error(err);
+      const updatedAnnouncement = normalizeAnnouncement(getSingleAnnouncement(response));
+
+      setItems((currentItems) =>
+        currentItems.map((item) =>
+          item.id === id
+            ? updatedAnnouncement || { ...item, pinned: !item.pinned }
+            : item,
+        ),
+      );
+    } catch (updateError) {
+      console.error("Error updating announcement pin:", updateError);
+      setError("Failed to update the pin state.");
+    } finally {
+      setActionState({ id: null, type: "" });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      setActionState({ id, type: "delete" });
+      setError("");
+
+      await deleteAnnouncement(id);
+      setItems((currentItems) => currentItems.filter((item) => item.id !== id));
+    } catch (deleteError) {
+      console.error("Error deleting announcement:", deleteError);
       setError("Failed to delete announcement.");
     } finally {
-      setDeletingId(null);
+      setActionState({ id: null, type: "" });
     }
   };
 
   const filtered = items
-    .filter((a) => filter === "All" || a.priority === filter)
-    .sort((a, b) => b.pinned - a.pinned);
+    .filter((item) => filter === "All" || item.priority === filter)
+    .sort((left, right) => Number(right.pinned) - Number(left.pinned));
+
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -204,25 +209,24 @@ const Announcements = () => {
         subtitle="Create and manage platform-wide announcements"
         action={
           <button
-            onClick={() => setShowForm(!showForm)}
+            type="button"
+            onClick={handleToggleForm}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
           >
-            <Plus size={15} /> New Announcement
+            <Plus size={15} /> {showForm ? "Close Form" : "New Announcement"}
           </button>
         }
       />
 
-      {/* Create Form */}
       {showForm && (
         <Card className="p-5 border-blue-200 bg-blue-50/40">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-900">
-              Create Announcement
-            </h3>
+            <h3 className="text-sm font-semibold text-slate-900">Create Announcement</h3>
             <button
-              onClick={() => setShowForm(false)}
+              type="button"
+              onClick={closeForm}
               disabled={submitting}
-              className="text-slate-400 hover:text-slate-600"
+              className="text-slate-400 hover:text-slate-600 disabled:opacity-60"
             >
               <X size={16} />
             </button>
@@ -230,48 +234,52 @@ const Announcements = () => {
           <div className="space-y-3">
             <input
               value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onChange={(event) =>
+                setForm((currentForm) => ({ ...currentForm, title: event.target.value }))
+              }
               placeholder="Announcement title…"
               disabled={submitting}
               className="w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
             <textarea
               value={form.desc}
-              onChange={(e) => setForm({ ...form, desc: e.target.value })}
+              onChange={(event) =>
+                setForm((currentForm) => ({ ...currentForm, desc: event.target.value }))
+              }
               placeholder="Write the announcement message…"
               rows={3}
               disabled={submitting}
               className="w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
             />
             <div className="flex items-center gap-3">
-              <label className="text-xs font-medium text-slate-500">
-                Priority:
-              </label>
+              <label className="text-xs font-medium text-slate-500">Priority:</label>
               <div className="flex gap-2">
-                {PRIORITIES.map((p) => (
+                {PRIORITIES.map((priority) => (
                   <button
-                    key={p}
-                    onClick={() => setForm({ ...form, priority: p })}
+                    key={priority}
+                    type="button"
+                    onClick={() =>
+                      setForm((currentForm) => ({ ...currentForm, priority }))
+                    }
                     disabled={submitting}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                      form.priority === p
-                        ? p === "High"
+                      form.priority === priority
+                        ? priority === "High"
                           ? "bg-red-500 text-white"
-                          : p === "Medium"
+                          : priority === "Medium"
                             ? "bg-amber-500 text-white"
                             : "bg-emerald-500 text-white"
                         : "bg-white border border-slate-200 text-slate-600"
                     }`}
                   >
-                    {p}
+                    {priority}
                   </button>
                 ))}
               </div>
               <button
+                type="button"
                 onClick={handlePost}
-                disabled={
-                  submitting || !form.title.trim() || !form.desc.trim()
-                }
+                disabled={submitting || !form.title.trim() || !form.desc.trim()}
                 className="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
@@ -288,89 +296,98 @@ const Announcements = () => {
         </div>
       )}
 
-      {/* Filter Pills */}
       <div className="flex gap-2 flex-wrap">
-        {FILTERS.map((f) => (
+        {FILTERS.map((item) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
+            key={item}
+            type="button"
+            onClick={() => setFilter(item)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
-              filter === f
+              filter === item
                 ? "bg-blue-600 text-white shadow-sm"
                 : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"
             }`}
           >
-            {f}
+            {item}
           </button>
         ))}
       </div>
 
-      {/* Cards */}
       <div className="space-y-3">
-        {loading && (
-          <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-10 text-sm text-slate-500">
-            <Loader2 size={16} className="animate-spin" />
-            Loading announcements...
-          </div>
-        )}
-
-        {!loading &&
-          filtered.map((a) => (
-          <Card
-            key={a.id}
-            className={`p-5 ${a.pinned ? "border-l-4 border-l-blue-500" : ""}`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {a.pinned && (
-                    <span className="text-xs font-semibold text-blue-600 flex items-center gap-1">
-                      <Pin size={11} /> Pinned
-                    </span>
-                  )}
-                  <Badge variant={PRIORITY_VARIANTS[a.priority]}>
-                    {a.priority}
-                  </Badge>
-                </div>
-                <h3 className="font-semibold text-slate-900">{a.title}</h3>
-                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                  {a.content}
-                </p>
-                <p className="text-xs text-slate-400 mt-2">
-                  {getCreatedAtLabel(a.createdAt)}
-                </p>
-              </div>
-
-              <div className="flex gap-1 flex-shrink-0">
-                <button
-                  onClick={() => togglePin(a.id)}
-                  title={a.pinned ? "Unpin" : "Pin"}
-                  className={`p-2 rounded-lg transition ${
-                    a.pinned
-                      ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
-                      : "text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                  }`}
-                >
-                  <Pin size={14} />
-                </button>
-                <button
-                  onClick={() => deleteItem(a.id)}
-                  title="Delete"
-                  disabled={deletingId === a.id}
-                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {deletingId === a.id ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={14} />
-                  )}
-                </button>
-              </div>
+        {loading ? (
+          <Card className="p-6">
+            <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+              <Loader2 size={16} className="animate-spin" />
+              Loading announcements...
             </div>
           </Card>
-        ))}
+        ) : filtered.length > 0 ? (
+          filtered.map((announcement) => {
+            const isBusy = actionState.id === announcement.id;
 
-        {!loading && filtered.length === 0 && (
+            return (
+              <Card
+                key={announcement.id}
+                className={`p-5 ${announcement.pinned ? "border-l-4 border-l-blue-500" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      {announcement.pinned && (
+                        <span className="text-xs font-semibold text-blue-600 flex items-center gap-1">
+                          <Pin size={11} /> Pinned
+                        </span>
+                      )}
+                      <Badge variant={PRIORITY_VARIANTS[announcement.priority]}>
+                        {announcement.priority}
+                      </Badge>
+                    </div>
+                    <h3 className="font-semibold text-slate-900">{announcement.title}</h3>
+                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                      {announcement.content}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-2">
+                      {getCreatedAtLabel(announcement.createdAt)}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handlePinToggle(announcement.id)}
+                      title={announcement.pinned ? "Unpin" : "Pin"}
+                      disabled={isBusy}
+                      className={`p-2 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed ${
+                        announcement.pinned
+                          ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
+                          : "text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                      }`}
+                    >
+                      {isBusy && actionState.type === "pin" ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Pin size={14} />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(announcement.id)}
+                      title="Delete"
+                      disabled={isBusy}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isBusy && actionState.type === "delete" ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })
+        ) : (
           <div className="text-center py-16 text-slate-400">
             <Megaphone size={40} className="mx-auto mb-3 opacity-30" />
             <p>No announcements found.</p>
@@ -382,6 +399,3 @@ const Announcements = () => {
 };
 
 export default Announcements;
-
-
-// problems:-  PIN State not handled
