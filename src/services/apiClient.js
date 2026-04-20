@@ -386,3 +386,72 @@ export const deleteCurrentUser = (payload = {}) => {
     body: JSON.stringify(payload),
   });
 };
+
+export const getAdminReports = () => {
+  // API CALL
+  // Expected response:
+  // Array<{
+  //   id?: string | number,
+  //   _id?: string | number,
+  //   title?: string,
+  //   name?: string,
+  //   intern?: string,
+  //   internName?: string,
+  //   user?: string,
+  //   status?: string,
+  //   score?: number,
+  //   rating?: number,
+  //   date?: string,
+  //   submittedAt?: string,
+  //   createdAt?: string,
+  //   downloadUrl?: string,
+  //   fileUrl?: string,
+  //   url?: string
+  // }>
+  // or
+  // {
+  //   data?: Report[],
+  //   reports?: Report[],
+  //   items?: Report[]
+  // }
+  return request("/admin/reports");
+};
+
+export const approveAdminReport = (id, payload = {}) => {
+  // API CALL
+  // Expected request body:
+  // {
+  //   status?: string,
+  //   score?: number
+  // }
+  return request(`/admin/reports/${id}/approve`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const getUserReports = () => {
+  // API CALL
+  // Expected response:
+  // Array<Report>
+  // or
+  // {
+  //   data?: Report[],
+  //   reports?: Report[],
+  //   items?: Report[]
+  // }
+  return request("/users/reports");
+};
+
+export const createUserReport = (report) => {
+  // API CALL
+  // Expected request body:
+  // {
+  //   title: string,
+  //   summary?: string
+  // }
+  return request("/users/reports", {
+    method: "POST",
+    body: JSON.stringify(report),
+  });
+};
