@@ -1142,3 +1142,370 @@ export const getUserDashboardData = async () => {
     pendingTasks,
   };
 };
+
+const getDashboardRecentMonths = (count) => {
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date();
+    date.setDate(1);
+    date.setHours(0, 0, 0, 0);
+    date.setMonth(date.getMonth() - (count - index - 1));
+    return date;
+  });
+};
+
+const buildDashboardMonthlyCounts = (items, count) => {
+  const months = getDashboardRecentMonths(count);
+
+  return months.map((date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    return {
+      label: date.toLocaleDateString("en-US", { month: "short" }),
+      count: items.filter(
+        (item) =>
+          item.timestamp &&
+          item.timestamp.getFullYear() === year &&
+          item.timestamp.getMonth() === month,
+      ).length,
+    };
+  });
+};
+
+const getDashboardRecentWeeks = (count) => {
+  return Array.from({ length: count }, (_, index) => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - start.getDay() - 7 * (count - index - 1));
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    return {
+      label: `W${index + 1}`,
+      start,
+      end,
+    };
+  });
+};
+
+const buildDashboardWeeklyReportCounts = (reports, count) => {
+  return getDashboardRecentWeeks(count).map((week) => ({
+    week: week.label,
+    submitted: reports.filter(
+      (item) => item.timestamp && item.timestamp >= week.start && item.timestamp <= week.end,
+    ).length,
+    reviewed: reports.filter(
+      (item) =>
+        item.timestamp &&
+        item.status === "Reviewed" &&
+        item.timestamp >= week.start &&
+        item.timestamp <= week.end,
+    ).length,
+  }));
+};
+
+const buildDashboardDepartmentDistribution = (interns) => {
+  const counts = interns.reduce((accumulator, intern) => {
+    const key = intern.department || "General";
+    accumulator.set(key, (accumulator.get(key) || 0) + 1);
+    return accumulator;
+  }, new Map());
+
+  return Array.from(counts.entries()).map(([name, value]) => ({ name, value }));
+};
+
+const buildAdminTaskSummary = (interns, reports) => {
+  return interns.map((intern) => ({
+    name: intern.name,
+    department: intern.department,
+    score: intern.rating ?? 0,
+    tasks: reports.filter((report) => report.actor === intern.name).length,
+    status: intern.status,
+  }));
+};
+
+const buildUserTaskProgress = (analytics, skillDistribution, reports) => {
+  if (Array.isArray(analytics) && analytics.length > 0) {
+    return analytics
+      .slice(0, 5)
+      .map((item) => ({
+        task: item.label || item.name || "Task",
+        completion: Math.max(0, Math.min(100, Number.parseFloat(item.value) || 0)),
+      }));
+  }
+
+  if (Array.isArray(skillDistribution) && skillDistribution.length > 0) {
+    return skillDistribution.slice(0, 5).map((item) => ({
+      task: item.name,
+      completion: Math.max(0, Math.min(100, Number.parseFloat(item.value) || 0)),
+    }));
+  }
+
+  return reports.slice(0, 5).map((item, index) => ({
+    task: item.title || `Task ${index + 1}`,
+    completion: item.status === "Reviewed" ? 100 : 60,
+  }));
+};
+
+const buildUserStrengths = (skillDistribution, profile, reports) => {
+  const strengths = [];
+
+  skillDistribution.slice(0, 3).forEach((item) => {
+    strengths.push({
+      label: item.name,
+      score: Math.max(55, Math.min(100, Number.parseFloat(item.value) || 0)),
+    });
+  });
+
+  if (profile.attendance !== null) {
+    strengths.push({
+      label: "Consistency",
+      score: profile.attendance,
+    });
+  }
+
+  const reviewedReports = reports.filter((item) => item.status === "Reviewed").length;
+  if (reports.length > 0) {
+    strengths.push({
+      label: "Execution",
+      score: Math.round((reviewedReports / reports.length) * 100),
+    });
+  }
+
+  if (profile.score !== null) {
+    strengths.push({
+      label: "Performance",
+      score: Math.round(Math.min(100, profile.score * 10)),
+    });
+  }
+
+  return strengths.slice(0, 5);
+};
+
+// Analytics service aggregators.
+// If backend adds `/admin/analytics` or `/users/analytics`,
+// update only these two functions and keep page components unchanged.
+export const getAdminAnalyticsData = async () => {
+  const results = await Promise.allSettled([
+    getInterns(),
+    getAdminReports(),
+    getAdminKnowledgeArticles(),
+    getAnnouncements(),
+  ]);
+
+  const [internsResult, reportsResult, articlesResult, announcementsResult] = results;
+
+  const interns =
+    internsResult.status === "fulfilled"
+      ? getDashboardList(internsResult.value).map(normalizeDashboardIntern).filter(Boolean)
+      : [];
+  const reports =
+    reportsResult.status === "fulfilled"
+      ? getDashboardList(reportsResult.value, ["reports"])
+          .map(normalizeDashboardReport)
+          .filter(Boolean)
+      : [];
+  const articles =
+    articlesResult.status === "fulfilled"
+      ? getDashboardList(articlesResult.value, ["articles"])
+          .map(normalizeDashboardArticle)
+          .filter(Boolean)
+      : [];
+  const announcements =
+    announcementsResult.status === "fulfilled"
+      ? getDashboardList(announcementsResult.value, ["announcements"])
+          .map(normalizeDashboardAnnouncement)
+          .filter(Boolean)
+      : [];
+
+  const failedSections = results.filter((result) => result.status === "rejected").length;
+
+  if (failedSections === results.length || (!interns.length && !reports.length && !articles.length)) {
+    throw new Error("Analytics data unavailable");
+  }
+
+  const scoredInterns = interns.map((item) => item.rating).filter((item) => item !== null);
+  const reviewedReports = reports.filter((item) => item.status === "Reviewed").length;
+  const answeredRate = reports.length ? Math.round((reviewedReports / reports.length) * 100) : 0;
+  const avgPerformance = scoredInterns.length
+    ? (scoredInterns.reduce((sum, value) => sum + value, 0) / scoredInterns.length).toFixed(1)
+    : "0.0";
+
+  return {
+    partialData: failedSections > 0,
+    statCards: [
+      {
+        title: "Total Reports",
+        value: String(reports.length),
+        trend: `${reviewedReports} reviewed`,
+        color: "#2563EB",
+      },
+      {
+        title: "Avg Performance",
+        value: `${avgPerformance}/10`,
+        trend: `${interns.length} interns tracked`,
+        color: "#7C3AED",
+      },
+      {
+        title: "KB Articles",
+        value: String(articles.length),
+        trend: `${articles.filter((item) => item.verified).length} verified`,
+        color: "#059669",
+      },
+      {
+        title: "Questions Answered",
+        value: `${answeredRate}%`,
+        trend: `${announcements.length} announcements`,
+        color: "#D97706",
+      },
+    ],
+    performanceData: interns.map((intern) => ({
+      name: intern.name.split(" ")[0] || intern.name,
+      score: intern.rating ?? 0,
+    })),
+    departmentData: buildDashboardDepartmentDistribution(interns),
+    weeklyReports: buildDashboardWeeklyReportCounts(reports, 4),
+    activityTrend: buildDashboardDailyCounts(
+      [
+        ...reports.map((item) => ({ timestamp: item.timestamp })),
+        ...articles.map((item) => ({ timestamp: item.timestamp })),
+        ...announcements.map((item) => ({ timestamp: item.timestamp })),
+      ].filter((item) => item.timestamp),
+      7,
+    ).map((item) => ({
+      day: item.label,
+      activity: item.count,
+    })),
+    taskSummary: buildAdminTaskSummary(interns, reports),
+  };
+};
+
+export const getUserAnalyticsData = async () => {
+  const results = await Promise.allSettled([
+    getCurrentUser(),
+    getUserReports(),
+    getReports(),
+    getKnowledgeArticles(),
+  ]);
+
+  const [profileResult, reportsResult, projectResult, knowledgeResult] = results;
+
+  const profile = normalizeDashboardProfile(
+    profileResult.status === "fulfilled" ? profileResult.value : null,
+  );
+  const reports =
+    reportsResult.status === "fulfilled"
+      ? getDashboardList(reportsResult.value, ["reports"])
+          .map(normalizeDashboardReport)
+          .filter(Boolean)
+      : [];
+  const projectSource = projectResult.status === "fulfilled" ? projectResult.value ?? {} : {};
+  const analytics = Array.isArray(projectSource?.analytics)
+    ? projectSource.analytics
+        .map((item, index) => ({
+          label: item?.name || `Step ${index + 1}`,
+          value: Number.parseFloat(item?.progress) || 0,
+        }))
+        .filter((item) => item.value >= 0)
+    : [];
+  const distribution = Array.isArray(projectSource?.distribution)
+    ? projectSource.distribution
+    : [];
+  const articles =
+    knowledgeResult.status === "fulfilled"
+      ? getDashboardList(knowledgeResult.value, ["articles"])
+          .map(normalizeDashboardArticle)
+          .filter(Boolean)
+      : [];
+
+  const failedSections = results.filter((result) => result.status === "rejected").length;
+
+  if (
+    failedSections === results.length ||
+    (!reports.length && !analytics.length && !distribution.length && !articles.length)
+  ) {
+    throw new Error("Analytics data unavailable");
+  }
+
+  const skillDistribution = getDashboardSkillDistribution(distribution, profile.skills);
+  const taskProgress = buildUserTaskProgress(analytics, skillDistribution, reports);
+  const completedReports = reports.filter((item) => item.status === "Reviewed").length;
+  const performanceScore =
+    profile.score !== null
+      ? Math.round(Math.min(100, profile.score * 10))
+      : reports.length
+        ? Math.round((completedReports / reports.length) * 100)
+        : 0;
+  const currentMonthReports = buildDashboardMonthlyCounts(reports, 1)[0]?.count ?? 0;
+  const monthlyTrend = buildDashboardMonthlyCounts(reports, 6).map((item, index) => {
+    const relatedProgress = analytics[index]?.value ?? performanceScore / 2;
+    return {
+      month: item.label,
+      activity: Number((item.count * 3 + relatedProgress / 10).toFixed(1)),
+      tasks: item.count,
+    };
+  });
+  const weeklyActivity = buildDashboardDailyCounts(
+    [
+      ...reports.map((item) => ({ timestamp: item.timestamp })),
+      ...articles.map((item) => ({ timestamp: item.timestamp })),
+    ].filter((item) => item.timestamp),
+    7,
+  ).map((item) => ({
+    day: item.label,
+    activity: item.count,
+  }));
+  const strengths = buildUserStrengths(skillDistribution, profile, reports);
+
+  return {
+    partialData: failedSections > 0,
+    heroChips: [
+      { value: `${performanceScore}%`, label: "Performance" },
+      { value: String(currentMonthReports), label: "This Month" },
+      { value: String(completedReports), label: "Tasks Done" },
+      {
+        value:
+          profile.score !== null
+            ? profile.score.toFixed(1)
+            : reports.length
+              ? ((reports.map((item) => item.score).filter((item) => item !== null).reduce((sum, value) => sum + value, 0) /
+                  Math.max(1, reports.map((item) => item.score).filter((item) => item !== null).length))).toFixed(1)
+              : "0.0",
+        label: "Avg Rating",
+      },
+    ],
+    statCards: [
+      {
+        title: "Tasks Completed",
+        value: String(completedReports),
+        trend: `${reports.length} reports total`,
+        color: "#00bea3",
+      },
+      {
+        title: "Learning Activity",
+        value: `${Number((monthlyTrend.reduce((sum, item) => sum + item.activity, 0)).toFixed(1))}`,
+        trend: `${currentMonthReports} this month`,
+        color: "#ff6d34",
+      },
+      {
+        title: "Performance",
+        value: `${performanceScore}%`,
+        trend: profile.score !== null ? `${profile.score.toFixed(1)}/10 score` : undefined,
+        color: "#7c3aed",
+      },
+      {
+        title: "Active Skills",
+        value: String(skillDistribution.length || profile.skills.length),
+        subtitle: "Tracked from profile",
+        color: "#f59e0b",
+      },
+    ],
+    monthlyTrend,
+    performanceScore,
+    skillDistribution,
+    taskProgress,
+    strengths,
+    weeklyActivity,
+  };
+};
