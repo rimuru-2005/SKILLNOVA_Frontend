@@ -546,3 +546,599 @@ export const submitKnowledgeArticleFeedback = (id, payload) => {
     body: JSON.stringify(payload),
   });
 };
+
+// Dashboard
+const getDashboardList = (payload, keys = []) => {
+  if (Array.isArray(payload)) return payload;
+
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) {
+      return payload[key];
+    }
+  }
+
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
+
+const parseDashboardDate = (value) => {
+  if (!value) return null;
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const normalizeDashboardStatus = (value, fallback = "Pending") => {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (["reviewed", "approved", "verified"].includes(normalized)) return "Reviewed";
+  if (["active", "present"].includes(normalized)) return "Active";
+  if (["inactive", "absent"].includes(normalized)) return "Inactive";
+  return fallback;
+};
+
+const formatDashboardRelativeTime = (date) => {
+  if (!(date instanceof Date)) return "New";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString();
+};
+
+const getDashboardDays = (count) => {
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (count - index - 1));
+    return date;
+  });
+};
+
+const buildDashboardDailyCounts = (items, count) => {
+  const days = getDashboardDays(count);
+
+  return days.map((date) => {
+    const dayKey = date.toDateString();
+
+    return {
+      label: date.toLocaleDateString("en-US", { weekday: "short" }),
+      count: items.filter((item) => item.timestamp?.toDateString() === dayKey).length,
+    };
+  });
+};
+
+const normalizeDashboardProfile = (item) => {
+  if (!item || typeof item !== "object") {
+    return {
+      name: "User",
+      role: "Member",
+      score: null,
+      attendance: null,
+      skills: [],
+    };
+  }
+
+  const score = Number.parseFloat(item.rating ?? item.score ?? item.performance);
+  const attendance = Number.parseFloat(
+    item.attendanceRate ?? item.attendancePercentage ?? item.attendance,
+  );
+
+  return {
+    name: item.name || "User",
+    role: item.role || "Member",
+    score: Number.isNaN(score) ? null : Number(score.toFixed(1)),
+    attendance: Number.isNaN(attendance) ? null : Math.round(attendance),
+    skills:
+      typeof item.skills === "string"
+        ? item.skills
+            .split(",")
+            .map((skill) => skill.trim())
+            .filter(Boolean)
+        : Array.isArray(item.skills)
+          ? item.skills.filter(Boolean)
+          : [],
+  };
+};
+
+const normalizeDashboardIntern = (item) => {
+  if (!item || typeof item !== "object") return null;
+
+  const rating = Number.parseFloat(item.rating ?? item.score);
+
+  return {
+    id: item.id ?? item._id ?? item.email ?? item.name ?? "intern",
+    name: item.name || item.fullName || "Unknown intern",
+    department: item.department || item.dept || "General",
+    attendance:
+      String(item.attendance || "").trim().toLowerCase() === "absent" ? "Absent" : "Present",
+    status: normalizeDashboardStatus(item.status, "Active"),
+    rating: Number.isNaN(rating) ? null : Number(rating.toFixed(1)),
+    createdAt: parseDashboardDate(item.createdAt || item.date || item.joinedAt),
+  };
+};
+
+const normalizeDashboardUser = (item) => {
+  if (!item || typeof item !== "object") return null;
+
+  return {
+    id: item.id ?? item._id ?? item.email ?? item.name ?? "user",
+    name: item.name || item.fullName || "Unknown user",
+    status: normalizeDashboardStatus(item.status, "Active"),
+    role: item.role || "User",
+    createdAt: parseDashboardDate(item.createdAt || item.updatedAt || item.date),
+  };
+};
+
+const normalizeDashboardReport = (item) => {
+  if (!item || typeof item !== "object") return null;
+
+  const score = Number.parseFloat(item.score ?? item.rating);
+  const timestamp = parseDashboardDate(
+    item.date || item.submittedAt || item.createdAt || item.updatedAt,
+  );
+
+  return {
+    id: item.id ?? item._id ?? item.title ?? "report",
+    title: item.title || item.name || "Untitled report",
+    status: normalizeDashboardStatus(item.status),
+    score: Number.isNaN(score) ? null : Number(score.toFixed(1)),
+    timestamp,
+    actor: item.intern || item.internName || item.user || "Unknown user",
+  };
+};
+
+const normalizeDashboardArticle = (item) => {
+  if (!item || typeof item !== "object") return null;
+
+  return {
+    id: item.id ?? item._id ?? item.title ?? "article",
+    title: item.title || "Untitled article",
+    category: item.category || "General",
+    verified: Boolean(item.verified),
+    timestamp: parseDashboardDate(item.updatedAt || item.createdAt || item.date),
+  };
+};
+
+const normalizeDashboardAnnouncement = (item) => {
+  if (!item || typeof item !== "object") return null;
+
+  return {
+    id: item.id ?? item._id ?? item.title ?? "announcement",
+    title: item.title || item.message || item.text || "New announcement",
+    priority: String(item.priority || "").toLowerCase(),
+    pinned: Boolean(item.pinned),
+    timestamp: parseDashboardDate(
+      item.createdAt || item.updatedAt || item.date || item.publishedAt,
+    ),
+  };
+};
+
+const normalizeDashboardMilestone = (item, index) => {
+  if (!item || typeof item !== "object") return null;
+
+  return {
+    id: item.id ?? `milestone-${index}`,
+    title: item.title || item.name || `Task ${index + 1}`,
+    status: String(item.status || "").trim().toLowerCase() || "not-started",
+  };
+};
+
+const buildAdminRecentActions = ({ reports, users, articles, announcements }) => {
+  return [
+    ...reports
+      .filter((item) => item.timestamp)
+      .map((item) => ({
+        action: item.status === "Reviewed" ? "Report reviewed" : "Report submitted",
+        detail: `${item.title} · ${item.actor}`,
+        time: formatDashboardRelativeTime(item.timestamp).replace(" ago", ""),
+        sortValue: item.timestamp.getTime(),
+        color: item.status === "Reviewed" ? "green" : "orange",
+      })),
+    ...users
+      .filter((item) => item.createdAt)
+      .map((item) => ({
+        action: "User updated",
+        detail: `${item.name} · ${item.role}`,
+        time: formatDashboardRelativeTime(item.createdAt).replace(" ago", ""),
+        sortValue: item.createdAt.getTime(),
+        color: item.status === "Active" ? "green" : "dark",
+      })),
+    ...articles
+      .filter((item) => item.timestamp)
+      .map((item) => ({
+        action: item.verified ? "Article verified" : "Article updated",
+        detail: item.title,
+        time: formatDashboardRelativeTime(item.timestamp).replace(" ago", ""),
+        sortValue: item.timestamp.getTime(),
+        color: item.verified ? "green" : "orange",
+      })),
+    ...announcements
+      .filter((item) => item.timestamp)
+      .map((item) => ({
+        action: "Announcement posted",
+        detail: item.title,
+        time: formatDashboardRelativeTime(item.timestamp).replace(" ago", ""),
+        sortValue: item.timestamp.getTime(),
+        color: item.pinned || item.priority === "high" ? "orange" : "dark",
+      })),
+  ]
+    .sort((left, right) => right.sortValue - left.sortValue)
+    .slice(0, 5);
+};
+
+const buildUserRecentActivity = ({ reports, announcements, articles }) => {
+  return [
+    ...reports
+      .filter((item) => item.timestamp)
+      .map((item) => ({
+        icon: item.status === "Reviewed" ? "✅" : "📄",
+        text:
+          item.status === "Reviewed"
+            ? `Report reviewed: ${item.title}`
+            : `Submitted report: ${item.title}`,
+        time: formatDashboardRelativeTime(item.timestamp),
+        sortValue: item.timestamp.getTime(),
+      })),
+    ...announcements
+      .filter((item) => item.timestamp)
+      .map((item) => ({
+        icon: item.pinned || item.priority === "high" ? "📢" : "🔔",
+        text: item.title,
+        time: formatDashboardRelativeTime(item.timestamp),
+        sortValue: item.timestamp.getTime(),
+      })),
+    ...articles
+      .filter((item) => item.timestamp)
+      .map((item) => ({
+        icon: "📚",
+        text: `Knowledge update: ${item.title}`,
+        time: formatDashboardRelativeTime(item.timestamp),
+        sortValue: item.timestamp.getTime(),
+      })),
+  ]
+    .sort((left, right) => right.sortValue - left.sortValue)
+    .slice(0, 4);
+};
+
+const getDashboardSkillDistribution = (distribution, skills) => {
+  if (Array.isArray(distribution) && distribution.length > 0) {
+    return distribution
+      .map((item) => ({
+        name: item?.name || item?.label || "Skill",
+        value: Number.parseFloat(item?.value) || 0,
+      }))
+      .filter((item) => item.value > 0);
+  }
+
+  if (!Array.isArray(skills) || skills.length === 0) return [];
+
+  const limitedSkills = skills.slice(0, 5);
+  const percentage = Math.floor(100 / limitedSkills.length);
+  const remainder = 100 - percentage * limitedSkills.length;
+
+  return limitedSkills.map((skill, index) => ({
+    name: skill,
+    value: percentage + (index === 0 ? remainder : 0),
+  }));
+};
+
+const getDashboardPendingTasks = (milestones, reports) => {
+  const milestoneTasks = milestones
+    .filter((item) => item.status !== "completed")
+    .map((item) => ({
+      title: item.title,
+      priority: item.status === "in-progress" ? "High" : "Medium",
+      due: item.status === "in-progress" ? "In Progress" : "Planned",
+    }));
+
+  if (milestoneTasks.length > 0) {
+    return milestoneTasks.slice(0, 4);
+  }
+
+  return reports
+    .filter((item) => item.status === "Pending")
+    .slice(0, 4)
+    .map((item) => ({
+      title: item.title,
+      priority: "High",
+      due: "Pending",
+    }));
+};
+
+// Dashboard service aggregator.
+// When backend endpoints like `/admin/dashboard` or `/users/dashboard` are available,
+// update only these functions and keep dashboard components unchanged.
+export const getAdminDashboardData = async () => {
+  const results = await Promise.allSettled([
+    getCurrentUser(),
+    getInterns(),
+    getAdminUsers(),
+    getAdminReports(),
+    getAdminKnowledgeArticles(),
+    getAnnouncements(),
+  ]);
+
+  const [profileResult, internsResult, usersResult, reportsResult, articlesResult, announcementsResult] =
+    results;
+
+  const profile = normalizeDashboardProfile(
+    profileResult.status === "fulfilled" ? profileResult.value : null,
+  );
+  const interns =
+    internsResult.status === "fulfilled"
+      ? getDashboardList(internsResult.value).map(normalizeDashboardIntern).filter(Boolean)
+      : [];
+  const users =
+    usersResult.status === "fulfilled"
+      ? getDashboardList(usersResult.value, ["users"]).map(normalizeDashboardUser).filter(Boolean)
+      : [];
+  const reports =
+    reportsResult.status === "fulfilled"
+      ? getDashboardList(reportsResult.value, ["reports"]).map(normalizeDashboardReport).filter(Boolean)
+      : [];
+  const articles =
+    articlesResult.status === "fulfilled"
+      ? getDashboardList(articlesResult.value, ["articles"]).map(normalizeDashboardArticle).filter(Boolean)
+      : [];
+  const announcements =
+    announcementsResult.status === "fulfilled"
+      ? getDashboardList(announcementsResult.value, ["announcements"])
+          .map(normalizeDashboardAnnouncement)
+          .filter(Boolean)
+      : [];
+
+  const failedSections = results.filter((result) => result.status === "rejected").length;
+
+  if (
+    failedSections === results.length ||
+    (!interns.length && !users.length && !reports.length && !articles.length && !announcements.length)
+  ) {
+    throw new Error("Dashboard data unavailable");
+  }
+
+  const now = new Date();
+  const weekAgo = new Date();
+  weekAgo.setDate(now.getDate() - 6);
+  weekAgo.setHours(0, 0, 0, 0);
+
+  const reportsThisWeek = reports.filter((item) => item.timestamp && item.timestamp >= weekAgo);
+  const activeUsers =
+    users.filter((item) => item.status === "Active").length ||
+    interns.filter((item) => item.status === "Active").length;
+  const pendingReviews = reports.filter((item) => item.status === "Pending").length;
+  const scoredReports = reports.map((item) => item.score).filter((item) => item !== null);
+  const avgScore = scoredReports.length
+    ? (scoredReports.reduce((sum, value) => sum + value, 0) / scoredReports.length).toFixed(1)
+    : "0.0";
+  const presentCount = interns.filter((item) => item.attendance === "Present").length;
+  const attendanceRate = interns.length ? Math.round((presentCount / interns.length) * 100) : 0;
+
+  const reportTrend = buildDashboardDailyCounts(reports, 5);
+  const userTrend = buildDashboardDailyCounts(
+    users.map((item) => ({ timestamp: item.createdAt })).filter((item) => item.timestamp),
+    5,
+  );
+  const weeklyActivity = reportTrend.map((item, index) => ({
+    day: item.label,
+    reports: item.count,
+    users: userTrend[index]?.count ?? 0,
+  }));
+
+  const activityTrend = buildDashboardDailyCounts(
+    [
+      ...reports.map((item) => ({ timestamp: item.timestamp })),
+      ...articles.map((item) => ({ timestamp: item.timestamp })),
+      ...announcements.map((item) => ({ timestamp: item.timestamp })),
+    ].filter((item) => item.timestamp),
+    7,
+  ).map((item) => ({
+    day: item.label,
+    activity: item.count,
+  }));
+
+  return {
+    profile,
+    partialData: failedSections > 0,
+    heroLabel: now.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+    heroStats: [
+      {
+        value: String(interns.length),
+        label: "Total Interns",
+        change: `${presentCount} present`,
+      },
+      {
+        value: String(activeUsers),
+        label: "Active Users",
+        change: `${users.length || interns.length} total tracked`,
+      },
+      {
+        value: String(reportsThisWeek.length),
+        label: "Reports This Week",
+        change: `${pendingReviews} pending`,
+      },
+      {
+        value: String(articles.length),
+        label: "KB Articles",
+        change: `${articles.filter((item) => item.verified).length} verified`,
+      },
+    ],
+    statCards: [
+      {
+        title: "Pending Reviews",
+        value: String(pendingReviews),
+        color: "#ff6d34",
+      },
+      {
+        title: "Avg Score",
+        value: `${avgScore}/10`,
+        color: "#00bea3",
+      },
+      {
+        title: "Attendance Rate",
+        value: `${attendanceRate}%`,
+        color: "#00bea3",
+      },
+      {
+        title: "Announcements",
+        value: String(announcements.length),
+        color: "#ff6d34",
+      },
+    ],
+    weeklyActivity,
+    recentActions: buildAdminRecentActions({ reports, users, articles, announcements }),
+    activityTrend,
+  };
+};
+
+export const getUserDashboardData = async () => {
+  const results = await Promise.allSettled([
+    getCurrentUser(),
+    getUserReports(),
+    getReports(),
+    getAnnouncements(),
+    getKnowledgeArticles(),
+  ]);
+
+  const [profileResult, userReportsResult, projectResult, announcementsResult, knowledgeResult] =
+    results;
+
+  const profile = normalizeDashboardProfile(
+    profileResult.status === "fulfilled" ? profileResult.value : null,
+  );
+  const reports =
+    userReportsResult.status === "fulfilled"
+      ? getDashboardList(userReportsResult.value, ["reports"])
+          .map(normalizeDashboardReport)
+          .filter(Boolean)
+      : [];
+  const projectSource = projectResult.status === "fulfilled" ? projectResult.value ?? {} : {};
+  const milestones = Array.isArray(projectSource?.milestones)
+    ? projectSource.milestones.map(normalizeDashboardMilestone).filter(Boolean)
+    : [];
+  const analytics = Array.isArray(projectSource?.analytics)
+    ? projectSource.analytics
+        .map((item, index) => ({
+          label: item?.name || `Step ${index + 1}`,
+          value: Number.parseFloat(item?.progress) || 0,
+        }))
+        .filter((item) => item.value >= 0)
+    : [];
+  const distribution = Array.isArray(projectSource?.distribution)
+    ? projectSource.distribution
+    : [];
+  const announcements =
+    announcementsResult.status === "fulfilled"
+      ? getDashboardList(announcementsResult.value, ["announcements"])
+          .map(normalizeDashboardAnnouncement)
+          .filter(Boolean)
+      : [];
+  const articles =
+    knowledgeResult.status === "fulfilled"
+      ? getDashboardList(knowledgeResult.value, ["articles"])
+          .map(normalizeDashboardArticle)
+          .filter(Boolean)
+      : [];
+
+  const failedSections = results.filter((result) => result.status === "rejected").length;
+
+  if (
+    failedSections === results.length ||
+    (!reports.length && !milestones.length && !announcements.length && !articles.length)
+  ) {
+    throw new Error("Dashboard data unavailable");
+  }
+
+  const completedTasks = milestones.filter((item) => item.status === "completed").length;
+  const pendingTasks = getDashboardPendingTasks(milestones, reports);
+  const reviewedReports = reports.filter((item) => item.status === "Reviewed").length;
+  const reportScores = reports.map((item) => item.score).filter((item) => item !== null);
+  const avgScore =
+    profile.score ??
+    (reportScores.length
+      ? Number(
+          (reportScores.reduce((sum, value) => sum + value, 0) / reportScores.length).toFixed(1),
+        )
+      : null);
+  const attendanceOrReviewRate =
+    profile.attendance ??
+    (reports.length ? Math.round((reviewedReports / reports.length) * 100) : 0);
+  const attendanceLabel = profile.attendance !== null ? "Attendance" : "Review Rate";
+
+  return {
+    profile,
+    partialData: failedSections > 0,
+    heroDate: new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }),
+    heroSummary: {
+      pendingTasks: pendingTasks.length,
+      unreadAnnouncements:
+        announcements.filter((item) => item.pinned || item.priority === "high").length ||
+        announcements.length,
+    },
+    heroChips: [
+      {
+        value: String(completedTasks),
+        label: "Tasks Done",
+      },
+      {
+        value: `${attendanceOrReviewRate}%`,
+        label: attendanceLabel,
+      },
+      {
+        value: avgScore !== null ? String(avgScore) : "N/A",
+        label: "Score",
+      },
+    ],
+    statCards: [
+      {
+        title: "Assigned Tasks",
+        value: String(milestones.length || reports.length),
+        trend: pendingTasks.length > 0 ? `${pendingTasks.length} pending` : undefined,
+        color: "#ff6d34",
+      },
+      {
+        title: "Completed",
+        value: String(completedTasks || reviewedReports),
+        trend: milestones.length > 0 ? `${completedTasks} finished` : `${reviewedReports} reviewed`,
+        color: "#00bea3",
+      },
+      {
+        title: attendanceLabel,
+        value: `${attendanceOrReviewRate}%`,
+        subtitle:
+          profile.attendance !== null
+            ? "Based on your profile"
+            : `${reviewedReports}/${reports.length || 0} reviewed`,
+        color: "#ff6d34",
+      },
+      {
+        title: "Performance",
+        value: avgScore !== null ? `${avgScore}/10` : "N/A",
+        trend: reportScores.length > 0 ? `${reportScores.length} scored reports` : undefined,
+        color: "#00bea3",
+      },
+    ],
+    chartActivity:
+      analytics.length > 0 ? analytics : buildDashboardDailyCounts(reports, 7).map((item) => ({
+        label: item.label,
+        value: item.count,
+      })),
+    skillDistribution: getDashboardSkillDistribution(distribution, profile.skills),
+    recentActivity: buildUserRecentActivity({ reports, announcements, articles }),
+    pendingTasks,
+  };
+};
