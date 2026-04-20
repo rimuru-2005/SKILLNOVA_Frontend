@@ -455,3 +455,94 @@ export const createUserReport = (report) => {
     body: JSON.stringify(report),
   });
 };
+
+export const getAdminKnowledgeArticles = () => {
+  // API CALL
+  // Expected response:
+  // Array<{
+  //   id?: string | number,
+  //   _id?: string | number,
+  //   title?: string,
+  //   category?: string,
+  //   author?: string,
+  //   views?: number,
+  //   helpful?: number,
+  //   verified?: boolean,
+  //   date?: string,
+  //   createdAt?: string,
+  //   updatedAt?: string,
+  //   tags?: string[],
+  //   content?: string,
+  //   summary?: string
+  // }>
+  // or
+  // {
+  //   data?: Article[],
+  //   articles?: Article[],
+  //   items?: Article[]
+  // }
+  return request("/admin/knowledge/articles");
+};
+
+export const createAdminKnowledgeArticle = (article) => {
+  // API CALL
+  // Expected request body:
+  // {
+  //   title: string,
+  //   category: string,
+  //   content?: string,
+  //   summary?: string
+  // }
+  return request("/admin/knowledge/articles", {
+    method: "POST",
+    body: JSON.stringify(article),
+  });
+};
+
+export const updateAdminKnowledgeArticle = (id, payload) => {
+  // API CALL
+  // Expected request body:
+  // Partial<{
+  //   verified: boolean,
+  //   title: string,
+  //   category: string,
+  //   content: string,
+  //   summary: string
+  // }>
+  return request(`/admin/knowledge/articles/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const deleteAdminKnowledgeArticle = (id) => {
+  // API CALL
+  return request(`/admin/knowledge/articles/${id}`, {
+    method: "DELETE",
+  });
+};
+
+export const getKnowledgeArticles = () => {
+  // API CALL
+  // Expected response:
+  // Array<Article>
+  // or
+  // {
+  //   data?: Article[],
+  //   articles?: Article[],
+  //   items?: Article[]
+  // }
+  return request("/knowledge/articles");
+};
+
+export const submitKnowledgeArticleFeedback = (id, payload) => {
+  // API CALL
+  // Expected request body:
+  // {
+  //   helpful: boolean
+  // }
+  return request(`/knowledge/articles/${id}/feedback`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
