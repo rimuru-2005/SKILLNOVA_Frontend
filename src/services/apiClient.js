@@ -1,8 +1,165 @@
 import { request } from "./api";
+import { findAuthUser, getAuthUsers } from "../auth/utils/mockAuth";
 
 // Centralized API client for frontend integration.
 // Each function below is the single place that knows the endpoint path and HTTP method.
 // As backend routes stabilize, update this file first and keep component code focused on UI.
+
+const AUTH_SESSION_STORAGE_KEY = "skillnova-auth-session";
+
+const readAuthSession = () => {
+  try {
+    const raw = localStorage.getItem(AUTH_SESSION_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    return {
+      role: parsed.role === "admin" ? "admin" : "intern",
+      email: String(parsed.email || "").trim().toLowerCase(),
+      token: parsed.token || localStorage.getItem("token") || null,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const writeAuthSession = (session) => {
+  localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
+};
+
+const getAuthUserByEmail = (email) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  return getAuthUsers().find((user) => user.email.toLowerCase() === normalizedEmail) || null;
+};
+
+const isMissingAuthEndpointError = (error) =>
+  !error?.status || [404, 405, 501].includes(error.status);
+
+// Auth
+export const getStoredAuthSession = () => {
+  return readAuthSession();
+};
+
+export const persistAuthSession = ({ role, email, token = null }) => {
+  const session = {
+    role: role === "admin" ? "admin" : "intern",
+    email: String(email || "").trim().toLowerCase(),
+    token: token || null,
+  };
+
+  writeAuthSession(session);
+
+  if (session.token) {
+    localStorage.setItem("token", session.token);
+  } else {
+    localStorage.removeItem("token");
+  }
+
+  return session;
+};
+
+export const clearStoredAuthSession = () => {
+  localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+  localStorage.removeItem("token");
+};
+
+export const loginUser = async (email, password) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  try {
+    const data = await request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: normalizedEmail, password }),
+    });
+
+    return {
+      role: data?.role === "admin" ? "admin" : "intern",
+      email: String(data?.email || normalizedEmail).trim().toLowerCase(),
+      token: data?.token || null,
+    };
+  } catch (error) {
+    const fallbackUser = findAuthUser(normalizedEmail, password);
+
+    if (fallbackUser) {
+      return {
+        role: fallbackUser.role,
+        email: fallbackUser.email,
+        token: null,
+        usingFallback: true,
+      };
+    }
+
+    throw error;
+  }
+};
+
+export const sendAdminOtp = async (email) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  try {
+    return await request("/auth/admin/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ email: normalizedEmail }),
+    });
+  } catch (error) {
+    const fallbackUser = getAuthUserByEmail(normalizedEmail);
+
+    if (isMissingAuthEndpointError(error) && fallbackUser?.role === "admin") {
+      return { message: "Demo OTP ready" };
+    }
+
+    throw error;
+  }
+};
+
+export const verifyAdminOtp = async (email, otp) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  try {
+    return await request("/auth/admin/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ email: normalizedEmail, otp }),
+    });
+  } catch (error) {
+    const fallbackUser = getAuthUserByEmail(normalizedEmail);
+
+    if (isMissingAuthEndpointError(error) && fallbackUser?.role === "admin") {
+      if (otp === "123456") {
+        return { token: `demo-admin-token-${normalizedEmail}` };
+      }
+
+      throw new Error("Invalid OTP code. Use 123456 for demo.");
+    }
+
+    throw error;
+  }
+};
+
+export const verifyUserTwoFactor = async (email, code) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  try {
+    return await request("/auth/user/verify-2fa", {
+      method: "POST",
+      body: JSON.stringify({ email: normalizedEmail, code }),
+    });
+  } catch (error) {
+    const fallbackUser = getAuthUserByEmail(normalizedEmail);
+
+    if (isMissingAuthEndpointError(error) && fallbackUser?.role !== "admin") {
+      if (code === "654321") {
+        return { token: `demo-user-token-${normalizedEmail}` };
+      }
+
+      throw new Error("Invalid authenticator code. Use 654321 for demo.");
+    }
+
+    throw error;
+  }
+};
 
 export const getCurrentUser = () => {
   // API CALL

@@ -6,13 +6,20 @@ import Login from "./auth/pages/Login";
 import Signup from "./auth/pages/Signup";
 import AdminOTP from "./auth/pages/AdminOTP";
 import User2FA from "./auth/pages/User2FA";
+import {
+  clearStoredAuthSession,
+  getStoredAuthSession,
+  persistAuthSession,
+} from "./services/apiClient";
 
 const AuthGate = () => {
   // role: null | 'admin' | 'intern'
-  const [role, setRole] = useState(null); 
+  const [role, setRole] = useState(() => getStoredAuthSession()?.role || null); 
   
   // auth step: 'LOGIN' | 'SIGNUP' | 'OTP' | '2FA' | 'AUTHENTICATED'
-  const [authStep, setAuthStep] = useState('LOGIN');
+  const [authStep, setAuthStep] = useState(() =>
+    getStoredAuthSession()?.role ? 'AUTHENTICATED' : 'LOGIN',
+  );
   
   // temporary user details
   const [tempUser, setTempUser] = useState(null);
@@ -20,8 +27,10 @@ const AuthGate = () => {
   const [prefilledEmail, setPrefilledEmail] = useState('');
 
   const handleLoginSuccess = (userRole, email) => {
+    clearStoredAuthSession();
     setLoginNotice('');
     setTempUser({ role: userRole, email });
+    setPrefilledEmail(email);
     if (userRole === "admin") {
       setAuthStep("OTP");
     } else {
@@ -29,15 +38,23 @@ const AuthGate = () => {
     }
   };
 
-  const handleVerificationSuccess = () => {
-    setRole(tempUser.role);
+  const handleVerificationSuccess = (token) => {
+    const nextSession = persistAuthSession({
+      role: tempUser?.role,
+      email: tempUser?.email,
+      token,
+    });
+
+    setRole(nextSession.role);
     setAuthStep("AUTHENTICATED");
+    setTempUser(null);
   };
 
   const handleLogout = () => {
+    clearStoredAuthSession();
+    setTempUser(null);
     setRole(null);
     setAuthStep("LOGIN");
-    setTempUser(null);
   };
 
   const handleShowSignup = () => {

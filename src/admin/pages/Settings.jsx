@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Card, Toggle, SectionHeader } from "../../shared/components/UI";
 import {
+  clearStoredAuthSession,
   deleteAdminPlatform,
   getAdminSettings,
   resetAdminUserData,
@@ -157,7 +158,7 @@ const Settings = ({ onLogout }) => {
       // API CALL
       await deleteAdminPlatform();
 
-      localStorage.removeItem("token");
+      clearStoredAuthSession();
       setConfirmDelete(false);
       if (typeof onLogout === "function") {
         onLogout();

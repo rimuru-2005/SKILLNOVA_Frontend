@@ -1,28 +1,30 @@
 import { useEffect, useState } from 'react';
 import './auth.css';
-import { findAuthUser } from '../utils/mockAuth';
+import { loginUser } from '../../services/apiClient';
 
 const Login = ({ onLoginSuccess, onShowSignup, initialEmail = '', notice = '' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setEmail(initialEmail);
   }, [initialEmail]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const user = findAuthUser(email, password);
-
-    if (user) {
+    try {
+      const user = await loginUser(email, password);
       onLoginSuccess(user.role, user.email);
-      return;
+    } catch (loginError) {
+      setError(loginError.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setError('Invalid email or password (try admin@../admin or user@../user)');
   };
 
   return (
@@ -42,6 +44,7 @@ const Login = ({ onLoginSuccess, onShowSignup, initialEmail = '', notice = '' })
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
               required
             />
           </div>
@@ -54,13 +57,14 @@ const Login = ({ onLoginSuccess, onShowSignup, initialEmail = '', notice = '' })
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
               required
             />
             {error && <span className="auth-error">{error}</span>}
           </div>
           
-          <button type="submit" className="auth-button">
-            Sign In
+          <button type="submit" className="auth-button" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
         
@@ -78,6 +82,7 @@ const Login = ({ onLoginSuccess, onShowSignup, initialEmail = '', notice = '' })
           <button
             type="button"
             onClick={onShowSignup}
+            disabled={loading}
             style={{ color: "#ff6d34", cursor: "pointer", fontWeight: "600", background: "transparent", border: "none", padding: 0 }}
           >
             Sign up

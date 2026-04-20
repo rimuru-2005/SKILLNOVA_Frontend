@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2, Power, Trash2 } from "lucide-react";
 import { Card, Toggle, SectionHeader } from "../../shared/components/UI";
 import {
+  clearStoredAuthSession,
   deactivateCurrentUser,
   deleteCurrentUser,
   getUserSettings,
@@ -131,7 +132,7 @@ const Settings = ({ onLogout }) => {
       // API CALL
       await deactivateCurrentUser();
 
-      localStorage.removeItem("token");
+      clearStoredAuthSession();
       if (typeof onLogout === "function") {
         onLogout();
       }
@@ -153,7 +154,7 @@ const Settings = ({ onLogout }) => {
         reason: deleteReason.trim() || undefined,
       });
 
-      localStorage.removeItem("token");
+      clearStoredAuthSession();
       if (typeof onLogout === "function") {
         onLogout();
       }

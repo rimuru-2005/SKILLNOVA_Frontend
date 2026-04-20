@@ -103,6 +103,11 @@
   box-shadow: 0 0 0 3px rgba(255, 109, 52, 0.2);
 }
 
+.auth-input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .auth-button {
   width: 100%;
   padding: 12px;
@@ -125,6 +130,13 @@
 
 .auth-button:active {
   transform: translateY(0);
+}
+
+.auth-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .auth-divider {

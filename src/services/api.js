@@ -1,27 +1,37 @@
-const BASE_URL = import.meta.env.VITE_API_BASE; // [cite: 138]
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE ||
+  "http://localhost:5000/api";
 
 export const request = async (url, options = {}) => {
-  const token = localStorage.getItem("token"); // [cite: 91]
+  const token = localStorage.getItem("token");
   const headers = {
-    "Content-Type": "application/json", // [cite: 95]
+    "Content-Type": "application/json",
     ...options.headers,
   };
 
   if (token) {
-    headers.Authorization = `Bearer ${token}`; // [cite: 96]
+    headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${BASE_URL}${url}`, { // [cite: 92]
+  const response = await fetch(`${BASE_URL}${url}`, {
     ...options,
     headers,
   });
 
-  if (!response.ok) throw new Error("API Error");
-  if (response.status === 204) return null;
-
   const text = await response.text();
-  if (!text) return null;
-
   const contentType = response.headers.get("content-type") || "";
-  return contentType.includes("application/json") ? JSON.parse(text) : text;
+  const data = !text ? null : contentType.includes("application/json") ? JSON.parse(text) : text;
+
+  if (!response.ok) {
+    const error = new Error(
+      data?.message || data?.error || `Request failed with status ${response.status}`,
+    );
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  if (response.status === 204) return null;
+  return data;
 };
