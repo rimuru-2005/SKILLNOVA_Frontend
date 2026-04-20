@@ -280,3 +280,109 @@ export const deleteAdminUser = (id) => {
     method: "DELETE",
   });
 };
+
+export const getAdminSettings = () => {
+  // API CALL
+  // Expected response:
+  // {
+  //   smtp?: boolean,
+  //   maintenance?: boolean,
+  //   registration?: boolean,
+  //   aiAssistant?: boolean,
+  //   auditLog?: boolean,
+  //   twoFactor?: boolean,
+  //   maxInterns?: number,
+  //   platformName?: string
+  // }
+  // or
+  // {
+  //   data?: AdminSettings
+  // }
+  return request("/admin/settings");
+};
+
+export const updateAdminSettings = (settings) => {
+  // API CALL
+  // Expected request body:
+  // {
+  //   smtp: boolean,
+  //   maintenance: boolean,
+  //   registration: boolean,
+  //   aiAssistant: boolean,
+  //   auditLog: boolean,
+  //   twoFactor: boolean,
+  //   maxInterns: number,
+  //   platformName: string
+  // }
+  return request("/admin/settings", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
+};
+
+export const resetAdminUserData = () => {
+  // API CALL
+  return request("/admin/reset-user-data", {
+    method: "POST",
+  });
+};
+
+export const deleteAdminPlatform = () => {
+  // API CALL
+  return request("/admin/platform", {
+    method: "DELETE",
+  });
+};
+
+export const getUserSettings = () => {
+  // API CALL
+  // Expected response:
+  // {
+  //   notifications?: boolean,
+  //   privateAccount?: boolean,
+  //   twoFactor?: boolean,
+  //   darkMode?: boolean,
+  //   language?: string,
+  //   availableLanguages?: string[]
+  // }
+  // or
+  // {
+  //   data?: UserSettings
+  // }
+  return request("/users/settings");
+};
+
+export const updateUserSettings = (settings) => {
+  // API CALL
+  // Expected request body:
+  // Partial<{
+  //   notifications: boolean,
+  //   privateAccount: boolean,
+  //   twoFactor: boolean,
+  //   darkMode: boolean,
+  //   language: string
+  // }>
+  return request("/users/settings", {
+    method: "PATCH",
+    body: JSON.stringify(settings),
+  });
+};
+
+export const deactivateCurrentUser = () => {
+  // API CALL
+  return request("/users/me/deactivate", {
+    method: "POST",
+  });
+};
+
+export const deleteCurrentUser = (payload = {}) => {
+  // API CALL
+  // Expected request body:
+  // {
+  //   reason?: string
+  // }
+  return request("/users/me", {
+    method: "DELETE",
+    body: JSON.stringify(payload),
+  });
+};

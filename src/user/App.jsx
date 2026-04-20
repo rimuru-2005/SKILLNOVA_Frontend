@@ -35,7 +35,7 @@ const UserApp = ({ onLogout }) => {
   return (
     <MainLayout page={page} onNavigate={setPage}  onLogout={onLogout} >
       {/* Inject onNavigate to the page components so they can change the route */}
-      {React.cloneElement(PAGES[page], { onNavigate: setPage })}
+      {React.cloneElement(PAGES[page], { onNavigate: setPage, onLogout })}
     </MainLayout>
   );
 };

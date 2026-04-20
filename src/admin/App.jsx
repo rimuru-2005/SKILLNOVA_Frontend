@@ -2,7 +2,7 @@
 //  ADMIN — App.jsx
 // ══════════════════════════════════════════════
 
-import { useState } from "react";
+import React, { useState } from "react";
 import MainLayout    from "./components/MainLayout";
 import Dashboard     from "./pages/Dashboard";
 import AdminPanel    from "./pages/AdminPanel";
@@ -29,7 +29,7 @@ const AdminApp = ({ onLogout }) => {
 
   return (
     <MainLayout page={page} onNavigate={setPage} onLogout={onLogout}>
-      {PAGES[page]}
+      {React.cloneElement(PAGES[page], { onLogout })}
     </MainLayout>
   );
 };
