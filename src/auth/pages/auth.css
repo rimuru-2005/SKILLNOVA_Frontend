@@ -194,6 +194,17 @@
   display: block;
 }
 
+.auth-success {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
 /* ===== MOBILE RESPONSIVENESS ===== */
 @media (max-width: 480px) {
   .auth-card {

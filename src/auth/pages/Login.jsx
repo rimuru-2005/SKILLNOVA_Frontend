@@ -1,23 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './auth.css';
+import { findAuthUser } from '../utils/mockAuth';
 
-const Login = ({ onLoginSuccess }) => {
+const Login = ({ onLoginSuccess, onShowSignup, initialEmail = '', notice = '' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    setEmail(initialEmail);
+  }, [initialEmail]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    
-    // Mock login verification logic
-    if (email === 'admin@skillnova.com' && password === 'admin') {
-      onLoginSuccess('admin', email);
-    } else if (email === 'user@skillnova.com' && password === 'user') {
-      onLoginSuccess('intern', email);
-    } else {
-      setError('Invalid email or password (try admin@../admin or user@../user)');
+
+    const user = findAuthUser(email, password);
+
+    if (user) {
+      onLoginSuccess(user.role, user.email);
+      return;
     }
+
+    setError('Invalid email or password (try admin@../admin or user@../user)');
   };
 
   return (
@@ -25,6 +30,8 @@ const Login = ({ onLoginSuccess }) => {
       <div className="auth-card">
         <h2 className="auth-title">Welcome Back</h2>
         <p className="auth-subtitle">Sign in to your SkillNova account to continue.</p>
+
+        {notice && <div className="auth-success">{notice}</div>}
         
         <form onSubmit={handleSubmit}>
           <div className="auth-form-group">
@@ -67,7 +74,14 @@ const Login = ({ onLoginSuccess }) => {
         </div>
 
         <div style={{ textAlign: "center", fontSize: "14px", color: "#9ca3af" }}>
-          Don't have an account? <span style={{ color: "#ff6d34", cursor: "pointer", fontWeight: "600" }}>Sign up</span>
+          Don&apos;t have an account?{" "}
+          <button
+            type="button"
+            onClick={onShowSignup}
+            style={{ color: "#ff6d34", cursor: "pointer", fontWeight: "600", background: "transparent", border: "none", padding: 0 }}
+          >
+            Sign up
+          </button>
         </div>
       </div>
     </div>
