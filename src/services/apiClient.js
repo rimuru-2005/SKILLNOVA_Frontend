@@ -207,3 +207,76 @@ export const updateInternStatus = (id) => {
     method: "PATCH",
   });
 };
+
+export const getAdminUsers = () => {
+  // MAKE API CALL
+  // Expected response:
+  // Array<{
+  //   id?: string | number,
+  //   _id?: string | number,
+  //   name?: string,
+  //   fullName?: string,
+  //   email?: string,
+  //   role?: string,
+  //   dept?: string,
+  //   department?: string,
+  //   status?: string,
+  //   avatar?: string,
+  //   rating?: number
+  // }>
+  // or
+  // {
+  //   data?: User[],
+  //   users?: User[],
+  //   items?: User[]
+  // }
+  return request("/users");
+};
+
+export const createAdminUser = (user) => {
+  // MAKE API CALL
+  // Expected request body:
+  // {
+  //   name: string,
+  //   email: string,
+  //   role: string,
+  //   dept: string,
+  //   status: string,
+  //   avatar: string,
+  //   rating: number
+  // }
+  return request("/users", {
+    method: "POST",
+    body: JSON.stringify(user),
+  });
+};
+
+export const updateAdminUser = (id, updates) => {
+  // MAKE API CALL
+  // Expected request body:
+  // Partial<{
+  //   role: string,
+  //   status: string,
+  //   dept: string,
+  //   rating: number
+  // }>
+  return request(`/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+};
+
+export const terminateAdminUser = (id) => {
+  // MAKE API CALL
+  // Placeholder endpoint for revoking user access while preserving separate delete behavior.
+  return request(`/users/${id}/terminate`, {
+    method: "PATCH",
+  });
+};
+
+export const deleteAdminUser = (id) => {
+  // MAKE API CALL
+  return request(`/users/${id}`, {
+    method: "DELETE",
+  });
+};
